@@ -1,0 +1,78 @@
+service: personal-finance-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    MONGODB_URI: ${env:MONGODB_URI}
+    NODE_ENV: ${self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+functions:
+  createTransaction:
+    handler: src/interface/lambda/createTransaction.handler
+    events:
+      - http:
+          path: transactions
+          method: post
+          cors: true
+
+  getTransactions:
+    handler: src/interface/lambda/getTransactions.handler
+    events:
+      - http:
+          path: transactions
+          method: get
+          cors: true
+
+  getTransactionById:
+    handler: src/interface/lambda/getTransactionById.handler
+    events:
+      - http:
+          path: transactions/{id}
+          method: get
+          cors: true
+
+  updateTransaction:
+    handler: src/interface/lambda/updateTransaction.handler
+    events:
+      - http:
+          path: transactions/{id}
+          method: put
+          cors: true
+
+  deleteTransaction:
+    handler: src/interface/lambda/deleteTransaction.handler
+    events:
+      - http:
+          path: transactions/{id}
+          method: delete
+          cors: true
+
+  getStats:
+    handler: src/interface/lambda/getStats.handler
+    events:
+      - http:
+          path: stats
+          method: get
+          cors: true
+
+custom:
+  serverless-offline:
+    httpPort: 3001
