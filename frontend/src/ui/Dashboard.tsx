@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { setCategory, setMonthYear, setQuery, setType } from "@/store/transactions/filtersSlice";
 import { selectFiltered, selectTotals } from "@/store/transactions/selectors";
-import { setQuery, setCategory, setType, setMonthYear } from "@/store/transactions/filtersSlice";
-import TransactionList from "./TransactionList";
+import { Card, H1, Input, Select, Stack, Text } from "./design/atoms";
 import AddTransactionForm from "./forms/AddTransactionForm";
-import { Card, Stack, H1, Input, Select, Text } from "./design/atoms";
-import { formatCurrencyBR } from "./utils/format";
 import { useDashboard } from "./hooks/useDashboard";
+import TransactionList from "./TransactionList";
+import { formatCurrencyBR } from "./utils/format";
 
 const categories = ["all", "Income", "Food", "Housing", "Transport", "Leisure", "Health", "Other"];
 

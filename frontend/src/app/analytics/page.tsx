@@ -1,6 +1,6 @@
-'use client';
-import ChartsContainer from '@/ui/charts/ChartsContainer';
+"use client";
+import ChartsContainer from "@/ui/charts/ChartsContainer";
 
 export default function AnalyticsPage() {
-  return <ChartsContainer />;
+    return <ChartsContainer />;
 }
