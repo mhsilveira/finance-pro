@@ -8,7 +8,6 @@ provider:
   region: us-east-1
   stage: ${opt:stage, 'dev'}
   environment:
-    MONGODB_URI: ${env:MONGODB_URI}
     NODE_ENV: ${self:provider.stage}
   iam:
     role:
@@ -21,6 +20,7 @@ provider:
           Resource: '*'
 
 plugins:
+  - serverless-dotenv-plugin
   - serverless-plugin-typescript
   - serverless-offline
 
@@ -65,14 +65,8 @@ functions:
           method: delete
           cors: true
 
-  getStats:
-    handler: src/interface/lambda/getStats.handler
-    events:
-      - http:
-          path: stats
-          method: get
-          cors: true
-
 custom:
   serverless-offline:
     httpPort: 3001
+  dotenv:
+    path: .env    
