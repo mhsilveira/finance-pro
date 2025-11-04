@@ -15,9 +15,9 @@ export const selectTopTransactions = createSelector([selectReportData], (data) =
 export const selectAverageDailySpending = createSelector([selectReportData], (data) => data?.averageDailySpending || 0);
 
 export const selectIncomeCategories = createSelector([selectCategoryBreakdown], (breakdown) =>
-    breakdown.filter((item) => item.type === "income"),
+	breakdown.filter((item) => item.type === "income"),
 );
 
 export const selectExpenseCategories = createSelector([selectCategoryBreakdown], (breakdown) =>
-    breakdown.filter((item) => item.type === "expense"),
+	breakdown.filter((item) => item.type === "expense"),
 );

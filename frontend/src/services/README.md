@@ -58,7 +58,7 @@ const dashboardStats = await mockService.getDashboardStats();
 
 ```typescript
 // Transações
-dispatch(fetchTransactions());
+dispatch(fetchTransactions({ userId: process.env.NEXT_PUBLIC_USER_ID }));
 dispatch(addTransaction(newTransaction));
 dispatch(updateTransaction(updatedTransaction));
 dispatch(removeTransaction(transactionId));

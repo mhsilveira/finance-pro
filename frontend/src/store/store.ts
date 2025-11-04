@@ -8,30 +8,30 @@ import filtersReducer from "./transactions/filtersSlice";
 import transactionsReducer from "./transactions/transactionsSlice";
 
 const rootReducer = combineReducers({
-    transactions: transactionsReducer,
-    filters: filtersReducer,
-    categories: categoriesReducer,
-    reports: reportsReducer,
-    dashboard: dashboardReducer,
+	transactions: transactionsReducer,
+	filters: filtersReducer,
+	categories: categoriesReducer,
+	reports: reportsReducer,
+	dashboard: dashboardReducer,
 });
 
 const persistConfig = {
-    key: "finance-pro",
-    storage,
-    whitelist: ["transactions", "filters", "categories"],
+	key: "finance-pro",
+	storage,
+	whitelist: ["transactions", "filters", "categories"],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
-    reducer: persistedReducer,
-    middleware: (getDefault) =>
-        getDefault({
-            serializableCheck: {
-                ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
-            },
-        }),
-    devTools: process.env.NODE_ENV !== "production",
+	reducer: persistedReducer,
+	middleware: (getDefault) =>
+		getDefault({
+			serializableCheck: {
+				ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+			},
+		}),
+	devTools: process.env.NODE_ENV !== "production",
 });
 
 export const persistor = persistStore(store);

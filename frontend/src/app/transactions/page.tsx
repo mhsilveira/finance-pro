@@ -8,20 +8,20 @@ import { useAppInit } from "@/ui/hooks/useAppInit";
 import TransactionList from "@/ui/TransactionList";
 
 export default function TransactionsPage() {
-    useAppInit();
-    const items = useSelector(selectFiltered);
-    return (
-        <div className="container">
-            <Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 16 }}>
-                <H1>Transações</H1>
-                <Text muted>Lista e CRUD</Text>
-            </Stack>
-            <Card>
-                <AddTransactionForm />
-            </Card>
-            <Card style={{ marginTop: 16 }}>
-                <TransactionList items={items} />
-            </Card>
-        </div>
-    );
+	useAppInit();
+	const items = useSelector(selectFiltered);
+	return (
+		<div className="container">
+			<Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 16 }}>
+				<H1>Transações</H1>
+				<Text muted>Lista e CRUD</Text>
+			</Stack>
+			<Card>
+				<AddTransactionForm />
+			</Card>
+			<Card style={{ marginTop: 16 }}>
+				<TransactionList items={items} />
+			</Card>
+		</div>
+	);
 }

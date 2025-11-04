@@ -6,8 +6,8 @@ export const selectCategoriesLoading = (state: RootState) => state.categories.lo
 export const selectCategoriesError = (state: RootState) => state.categories.error;
 
 export const selectCategoriesByType = createSelector(
-    [selectAllCategories, (state: RootState, type: "income" | "expense") => type],
-    (categories, type) => categories.filter((category) => category.type === type),
+	[selectAllCategories, (state: RootState, type: "income" | "expense") => type],
+	(categories, type) => categories.filter((category) => category.type === type),
 );
 
 export const selectIncomeCategories = (state: RootState) => selectCategoriesByType(state, "income");

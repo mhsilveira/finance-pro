@@ -1,35 +1,35 @@
 {
-    "name": "financial-control-backend",
-    "version": "1.0.0",
-    "description": "Backend for Financial Control App - Clean Architecture",
-    "scripts": {
-        "build": "tsc",
-        "dev": "serverless offline start",
-        "deploy": "npm run build && serverless deploy",
-        "deploy:prod": "npm run build && serverless deploy --stage prod",
-        "remove": "serverless remove",
-        "test": "jest",
-        "lint": "eslint src --ext .ts"
-    },
-    "dependencies": {
-        "module-alias": "^2.2.3",
-        "mongodb": "^6.20.0",
-        "mongoose": "^8.0.0",
-        "zod": "^3.22.4"
-    },
-    "devDependencies": {
-        "@types/aws-lambda": "^8.10.130",
-        "@types/module-alias": "^2.0.4",
-        "@types/mongodb": "^4.0.7",
-        "@types/node": "^20.10.0",
-        "@typescript-eslint/eslint-plugin": "^6.13.0",
-        "@typescript-eslint/parser": "^6.13.0",
-        "eslint": "^8.54.0",
-        "serverless": "^3.38.0",
-        "serverless-dotenv-plugin": "^6.0.0",
-        "serverless-offline": "^13.3.0",
-        "serverless-plugin-typescript": "^2.1.5",
-        "tsconfig-paths": "^4.2.0",
-        "typescript": "^5.3.0"
-    }
+	"name": "financial-control-backend",
+	"version": "1.0.0",
+	"description": "Backend for Financial Control App - Clean Architecture",
+	"scripts": {
+		"build": "tsc",
+		"dev": "serverless offline start",
+		"deploy": "npm run build && serverless deploy",
+		"deploy:prod": "npm run build && serverless deploy --stage prod",
+		"remove": "serverless remove",
+		"test": "jest",
+		"lint": "eslint src --ext .ts"
+	},
+	"dependencies": {
+		"module-alias": "^2.2.3",
+		"mongodb": "^6.20.0",
+		"mongoose": "^8.0.0",
+		"zod": "^3.22.4"
+	},
+	"devDependencies": {
+		"@types/aws-lambda": "^8.10.130",
+		"@types/module-alias": "^2.0.4",
+		"@types/mongodb": "^4.0.7",
+		"@types/node": "^20.10.0",
+		"@typescript-eslint/eslint-plugin": "^6.13.0",
+		"@typescript-eslint/parser": "^6.13.0",
+		"eslint": "^8.54.0",
+		"serverless": "^3.38.0",
+		"serverless-dotenv-plugin": "^6.0.0",
+		"serverless-offline": "^13.3.0",
+		"serverless-plugin-typescript": "^2.1.5",
+		"tsconfig-paths": "^4.2.0",
+		"typescript": "^5.3.0"
+	}
 }
