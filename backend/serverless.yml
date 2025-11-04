@@ -65,6 +65,14 @@ functions:
           method: delete
           cors: true
 
+
+  getReports:
+      handler: src/interface/lambda/getReports.handler
+      events:
+        - http:
+            path: reports
+            method: get          
+
 custom:
   serverless-offline:
     httpPort: 3001
