@@ -1,23 +1,24 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose'
 
-let isConnected = false;
+let isConnected = false
 
-export async function connectMongo(): Promise<typeof mongoose> {
-	if (isConnected) return mongoose;
+export async function connectMongo (): Promise<typeof mongoose> {
+  if (isConnected) return mongoose
 
-	const uri = process.env.MONGODB_URI;
-	if (!uri) {
-		throw new Error("MONGODB_URI não definida no ambiente");
-	}
+  const uri = process.env.MONGODB_URI
 
-	mongoose.set("strictQuery", true);
+  if (!uri) {
+    throw new Error('MONGODB_URI não definida no ambiente')
+  }
 
-	await mongoose.connect(uri, {
-		serverSelectionTimeoutMS: 10000,
-		maxPoolSize: 10,
-	} as any);
+  mongoose.set('strictQuery', true)
 
-	isConnected = true;
-	console.log("[MongoDB] Conectado");
-	return mongoose;
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: 10000,
+    maxPoolSize: 10
+  } as any)
+
+  isConnected = true
+  console.log('[MongoDB] Conectado')
+  return mongoose
 }

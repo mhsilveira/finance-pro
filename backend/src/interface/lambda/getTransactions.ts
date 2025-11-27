@@ -45,11 +45,10 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
     const repo = new TransactionRepository()
     const useCase = new ListTransactions(repo)
     const list = await useCase.execute(userId)
+    console.log('Transactions found:', list.length)
 
     const body = list.map(t => {
       const dt = toDateOrNull((t as any).date)
-      const created = toDateOrNull((t as any).createdAt)
-      const updated = toDateOrNull((t as any).updatedAt)
 
       const monthYear = dt
         ? `${String(dt.getUTCFullYear())}-${String(
@@ -57,25 +56,19 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
           ).padStart(2, '0')}`
         : null
 
-      // Se quiser manter ISO completo para casos que precisem de hora/min:
-      const dateISO = dt ? dt.toISOString() : null
-
       return {
         id: (t as any).id,
         userId: (t as any).userId,
         description: (t as any).description,
         amount: Number((t as any).amount),
         type: (t as any).type,
-        category: (t as any).category,
-        date: toDateOnly(dt), // "YYYY-MM-DD" (UTC) padronizado
-        monthYear, // "YYYY-MM"
-        // dateISO,                    // ISO completo opcional: descomente se quiser expor
-        createdAt: toDateOnly(created),
-        updatedAt: toDateOnly(updated)
+        category: (t as any).categoryName,
+        date: toDateOnly(dt),
+        monthYear
       }
     })
 
-    return json(200, body)
+    return json(200, list)
   } catch (err) {
     return serverError(err)
   }

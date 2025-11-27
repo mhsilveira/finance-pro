@@ -1,21 +1,32 @@
-import type { Metadata } from "next";
-import Providers from "./providers";
+// src/app/layout.tsx
 import "./globals.css";
-import Navbar from "@/ui/layout/navbar";
+import { Navbar } from "@/components/Navbar";
+import { Poppins } from "next/font/google";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
-export const metadata: Metadata = {
+const poppins = Poppins({
+	weight: ["300", "400", "500", "600", "700"],
+	subsets: ["latin"],
+	display: "swap",
+});
+
+export const metadata = {
 	title: "Finance Pro",
-	description: "Personal finance Playground with React/Redux",
+	description: "Controle financeiro pessoal inteligente",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
 	return (
-		<html lang="pt-BR">
-			<body>
-				<Providers>
+		<html lang="pt-BR" suppressHydrationWarning>
+			<body className={poppins.className}>
+				<ThemeProvider>
 					<Navbar />
 					{children}
-				</Providers>
+				</ThemeProvider>
 			</body>
 		</html>
 	);

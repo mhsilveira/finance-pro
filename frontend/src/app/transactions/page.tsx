@@ -1,27 +1,502 @@
-"use client";
-import React from "react";
-import { useSelector } from "react-redux";
-import { selectFiltered } from "@/store/transactions/selectors";
-import { Card, H1, Stack, Text } from "@/ui/design/atoms";
-import AddTransactionForm from "@/ui/forms/AddTransactionForm";
-import { useAppInit } from "@/ui/hooks/useAppInit";
-import TransactionList from "@/ui/TransactionList";
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import { AddTransactionModal } from '@/components/AddTransactionModal'
+import { TransactionTable } from '@/components/TransactionTable'
+import type { Transaction } from '@/types/transaction'
+import { deleteTransaction, getTransactions, createTransaction } from '@/services/api'
+import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
 
 export default function TransactionsPage() {
-	useAppInit();
-	const items = useSelector(selectFiltered);
-	return (
-		<div className="container">
-			<Stack direction="row" justify="space-between" align="center" style={{ marginBottom: 16 }}>
-				<H1>Transações</H1>
-				<Text muted>Lista e CRUD</Text>
-			</Stack>
-			<Card>
-				<AddTransactionForm />
-			</Card>
-			<Card style={{ marginTop: 16 }}>
-				<TransactionList items={items} />
-			</Card>
-		</div>
-	);
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [originFilter, setOriginFilter] = useState<'all' | 'CREDIT_CARD' | 'CASH'>('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  // CSV Import
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const userId = 'blanchimaah'
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const data = await getTransactions(userId)
+        console.log('Transações recebidas:', data) // Debug
+        setTransactions(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTransactions()
+  }, [])
+
+  const refetchTransactions = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const data = await getTransactions(userId)
+      console.log('Transações recebidas:', data) // Debug
+      setTransactions(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta transação?')) {
+      return
+    }
+
+    try {
+      await deleteTransaction(id)
+      setTransactions(prev => prev.filter(t => t.id !== id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao excluir transação')
+    }
+  }
+
+  const handleExport = () => {
+    exportTransactionsToCSV(filteredTransactions)
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImporting(true)
+
+    try {
+      const text = await file.text()
+      const newTransactions = parseCSV(text)
+
+      let successCount = 0
+      let errorCount = 0
+
+      for (const transaction of newTransactions) {
+        try {
+          await createTransaction(transaction)
+          successCount++
+        } catch (err) {
+          errorCount++
+          console.error('Erro ao importar transação:', err)
+        }
+      }
+
+      alert(
+        `Importação concluída!\n${successCount} transações importadas com sucesso.\n${errorCount} erros.`
+      )
+
+      await refetchTransactions()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao importar CSV')
+    } finally {
+      setImporting(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // Apply filters
+  const filteredTransactions = transactions.filter((t) => {
+    // Search filter
+    if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false
+    }
+
+    // Type filter
+    if (typeFilter !== 'all' && t.type !== typeFilter) {
+      return false
+    }
+
+    // Category filter
+    if (categoryFilter !== 'all' && t.category !== categoryFilter) {
+      return false
+    }
+
+    // Origin filter
+    if (originFilter !== 'all' && t.origin !== originFilter) {
+      return false
+    }
+
+    // Date range filter
+    if (dateFrom && new Date(t.date) < new Date(dateFrom)) {
+      return false
+    }
+    if (dateTo && new Date(t.date) > new Date(dateTo)) {
+      return false
+    }
+
+    return true
+  })
+
+  // Get unique categories for filter dropdown
+  const uniqueCategories = Array.from(new Set(transactions.map(t => t.category).filter(Boolean)))
+
+  // Calcular estatísticas (using filtered transactions)
+  const income = filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const expense = filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const stats = {
+    total: filteredTransactions.length,
+    income,
+    expense,
+    balance: income - expense
+  }
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setTypeFilter('all')
+    setCategoryFilter('all')
+    setOriginFilter('all')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const hasActiveFilters = searchTerm || typeFilter !== 'all' || categoryFilter !== 'all' || originFilter !== 'all' || dateFrom || dateTo
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value)
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Transações
+              </h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Gerencie suas receitas e despesas de forma inteligente
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {/* Export/Import Buttons */}
+              <button
+                onClick={handleExport}
+                disabled={transactions.length === 0}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span>📥</span>
+                <span>Exportar CSV</span>
+              </button>
+
+              <button
+                onClick={handleImportClick}
+                disabled={importing}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span>📤</span>
+                <span>{importing ? 'Importando...' : 'Importar CSV'}</span>
+              </button>
+
+              <button
+                onClick={downloadCSVTemplate}
+                className="px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium flex items-center gap-2"
+              >
+                <span>📄</span>
+                <span>Modelo CSV</span>
+              </button>
+
+              <AddTransactionModal
+                userId={userId}
+                onSuccess={refetchTransactions}
+              />
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        {!loading && !error && transactions.length > 0 && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Filtros
+              </h2>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+              {/* Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Buscar
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Descrição..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+
+              {/* Type Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tipo
+                </label>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="all">Todos</option>
+                  <option value="income">Receitas</option>
+                  <option value="expense">Despesas</option>
+                </select>
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Categoria
+                </label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="all">Todas</option>
+                  {uniqueCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Origin Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Origem
+                </label>
+                <select
+                  value={originFilter}
+                  onChange={(e) => setOriginFilter(e.target.value as 'all' | 'CREDIT_CARD' | 'CASH')}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value="all">Todas</option>
+                  <option value="CREDIT_CARD">Cartão de Crédito</option>
+                  <option value="CASH">Dinheiro</option>
+                </select>
+              </div>
+
+              {/* Date Range */}
+              <div className="md:col-span-2 lg:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Período
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                    title="Data inicial"
+                  />
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                    title="Data final"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                Exibindo {stats.total} de {transactions.length} transações
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats Cards */}
+        {!loading && !error && transactions.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {stats.total}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Receitas</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    {formatCurrency(stats.income)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Despesas</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {formatCurrency(stats.expense)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white/90">Saldo</p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCurrency(stats.balance)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div className="flex flex-col justify-center items-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4" />
+            <p className="text-gray-600 font-medium">Carregando transações...</p>
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 mb-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-6 w-6 text-red-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-base font-semibold text-red-800">
+                  Erro ao carregar transações
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  {error}
+                </div>
+                <button
+                  onClick={refetchTransactions}
+                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        {!loading && !error && (
+          <>
+            {filteredTransactions.length > 0 ? (
+              <TransactionTable
+                transactions={filteredTransactions}
+                onDelete={handleDelete}
+              />
+            ) : (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  Nenhuma transação encontrada com os filtros aplicados
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow font-medium"
+                >
+                  Limpar Filtros
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
