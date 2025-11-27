@@ -1,1 +1,9 @@
-{}
+{
+  "name": "financial-control-root",
+  "version": "1.0.0",
+  "description": "Root for Financial Control App - Clean Architecture",
+  "scripts": {
+    "dev": "cd backend && npm run dev",
+    "start": "cd frontend && npm run dev"
+  }
+}

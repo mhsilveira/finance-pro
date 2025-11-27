@@ -32,6 +32,14 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 			date: new Date(date),
 		});
 
+const safeISO = (v: any) =>
+  v
+    ? typeof v === 'string'
+      ? new Date(v).toISOString()
+      : v.toISOString()
+    : null
+
+		
 		return json(201, {
 			id: created.id,
 			userId: created.userId,
@@ -39,9 +47,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 			amount: created.amount,
 			type: created.type,
 			category: created.category,
-			date: created.date.toISOString(),
-			createdAt: created.createdAt.toISOString(),
-			updatedAt: created.updatedAt.toISOString(),
+			date: safeISO(created.date),
+			createdAt: safeISO(created.createdAt),
+			updatedAt: safeISO(created.updatedAt),
 		});
 	} catch (err: any) {
 		return serverError(err);
