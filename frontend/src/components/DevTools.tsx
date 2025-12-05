@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createTransaction, deleteTransaction, getTransactions } from '@/services/api'
+import { createTransaction, deleteTransaction, getAllTransactions } from '@/services/api'
 
 interface DevToolsProps {
   userId: string
@@ -101,7 +101,7 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 
     setLoading(true)
     try {
-      const transactions = await getTransactions(userId)
+      const transactions = await getAllTransactions(userId)
 
       let deleted = 0
       for (const transaction of transactions) {
