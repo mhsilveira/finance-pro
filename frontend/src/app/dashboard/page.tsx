@@ -177,10 +177,10 @@ export default function DashboardPage() {
 
 	if (loading) {
 		return (
-			<div className="min-h-screen flex items-center justify-center">
+			<div className="min-h-screen bg-slate-950 flex items-center justify-center">
 				<div className="text-center">
-					<div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4" />
-					<p className="text-gray-600 font-medium">Carregando dashboard...</p>
+					<div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-500 mx-auto mb-4" />
+					<p className="text-gray-400 font-medium">Carregando dashboard...</p>
 				</div>
 			</div>
 		);
@@ -188,87 +188,88 @@ export default function DashboardPage() {
 
 	if (error) {
 		return (
-			<div className="min-h-screen flex items-center justify-center p-6">
-				<div className="bg-red-50 border-2 border-red-200 rounded-xl p-8 max-w-md">
-					<h3 className="text-xl font-semibold text-red-800 mb-2">
+			<div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+				<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md">
+					<h3 className="text-xl font-semibold text-red-400 mb-2">
 						Erro ao carregar dados
 					</h3>
-					<p className="text-red-700">{error}</p>
+					<p className="text-red-300">{error}</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-4">
+		<div className="min-h-screen bg-slate-950 pt-4">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+					<h1 className="text-4xl font-bold text-gray-100">
 						Dashboard
 					</h1>
-					<p className="mt-2 text-gray-600">
+					<p className="mt-2 text-gray-400">
 						Visão geral das suas finanças
 					</p>
 				</div>
 
 				{/* Stats Cards */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-					<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-600">Total</p>
-								<p className="text-2xl font-bold text-gray-900 mt-1">
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
+								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
 									{transactions.length}
 								</p>
 								<p className="text-xs text-gray-500 mt-1">transações</p>
 							</div>
-							<div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+							<div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
 								<span className="text-2xl">💳</span>
 							</div>
 						</div>
 					</div>
 
-					<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-600">Receitas</p>
-								<p className="text-2xl font-bold text-green-600 mt-1">
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
+								<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
 									{formatCurrency(income)}
 								</p>
 								<p className="text-xs text-gray-500 mt-1">no período</p>
 							</div>
-							<div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+							<div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
 								<span className="text-2xl">📈</span>
 							</div>
 						</div>
 					</div>
 
-					<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-600">Despesas</p>
-								<p className="text-2xl font-bold text-red-600 mt-1">
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
+								<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
 									{formatCurrency(expense)}
 								</p>
 								<p className="text-xs text-gray-500 mt-1">no período</p>
 							</div>
-							<div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+							<div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
 								<span className="text-2xl">📉</span>
 							</div>
 						</div>
 					</div>
 
-					<div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-						<div className="flex items-center justify-between">
+					<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
+						<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
+						<div className="relative flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-white/90">Saldo</p>
-								<p className="text-2xl font-bold text-white mt-1">
+								<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
+								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
 									{formatCurrency(balance)}
 								</p>
-								<p className="text-xs text-white/80 mt-1">disponível</p>
+								<p className="text-xs text-gray-400 mt-1">disponível</p>
 							</div>
-							<div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+							<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
 								<span className="text-2xl">💰</span>
 							</div>
 						</div>
@@ -278,8 +279,8 @@ export default function DashboardPage() {
 				{/* Charts */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 					{/* Monthly Trends */}
-					<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-						<h2 className="text-lg font-semibold text-gray-900 mb-4">
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
 							Tendência Mensal
 						</h2>
 						{monthlyData.labels.length > 0 ? (
@@ -290,25 +291,37 @@ export default function DashboardPage() {
 									plugins: {
 										legend: {
 											position: "bottom",
+											labels: {
+												color: '#9CA3AF',
+												font: {
+													size: 12
+												}
+											}
 										},
 									},
 									scales: {
 										y: {
 											beginAtZero: true,
+											ticks: { color: '#6B7280' },
+											grid: { color: 'rgba(71, 85, 105, 0.3)' }
 										},
+										x: {
+											ticks: { color: '#6B7280' },
+											grid: { color: 'rgba(71, 85, 105, 0.3)' }
+										}
 									},
 								}}
 							/>
 						) : (
-							<p className="text-gray-500 text-center py-8">
+							<p className="text-gray-400 text-center py-8">
 								Sem dados suficientes
 							</p>
 						)}
 					</div>
 
 					{/* Category Breakdown */}
-					<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-						<h2 className="text-lg font-semibold text-gray-900 mb-4">
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
 							Despesas por Categoria
 						</h2>
 						{categoryData.labels.length > 0 ? (
@@ -322,6 +335,12 @@ export default function DashboardPage() {
 											plugins: {
 												legend: {
 													position: "bottom",
+													labels: {
+														color: '#9CA3AF',
+														font: {
+															size: 11
+														}
+													}
 												},
 											},
 										}}
@@ -329,7 +348,7 @@ export default function DashboardPage() {
 								</div>
 							</div>
 						) : (
-							<p className="text-gray-500 text-center py-8">
+							<p className="text-gray-400 text-center py-8">
 								Sem despesas registradas
 							</p>
 						)}
@@ -337,32 +356,32 @@ export default function DashboardPage() {
 				</div>
 
 				{/* Recent Transactions */}
-				<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+				<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-lg font-semibold text-gray-900">
+						<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">
 							Transações Recentes
 						</h2>
 						<Link
 							href="/transactions"
-							className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+							className="text-sm font-medium text-yellow-400 hover:text-yellow-300 transition-colors"
 						>
 							Ver todas →
 						</Link>
 					</div>
 
 					{recentTransactions.length > 0 ? (
-						<div className="space-y-3">
+						<div className="space-y-2">
 							{recentTransactions.map((t) => (
 								<div
 									key={t.id}
-									className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+									className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-800/50 transition-all border border-slate-800 hover:border-slate-700"
 								>
 									<div className="flex items-center gap-3">
 										<div
-											className={`w-10 h-10 rounded-full flex items-center justify-center ${
+											className={`w-10 h-10 rounded-lg flex items-center justify-center ${
 												t.type === "income"
-													? "bg-green-100"
-													: "bg-red-100"
+													? "bg-green-500/10"
+													: "bg-red-500/10"
 											}`}
 										>
 											<span className="text-lg">
@@ -370,20 +389,20 @@ export default function DashboardPage() {
 											</span>
 										</div>
 										<div>
-											<p className="font-medium text-gray-900">
+											<p className="font-medium text-gray-100">
 												{t.description}
 											</p>
-											<p className="text-sm text-gray-500">
+											<p className="text-sm text-gray-400">
 												{new Date(t.date).toLocaleDateString("pt-BR")} •{" "}
 												{t.category}
 											</p>
 										</div>
 									</div>
 									<p
-										className={`font-semibold ${
+										className={`font-semibold tabular-nums ${
 											t.type === "income"
-												? "text-green-600"
-												: "text-red-600"
+												? "text-green-400"
+												: "text-red-400"
 										}`}
 									>
 										{t.type === "income" ? "+" : "-"}
@@ -394,12 +413,12 @@ export default function DashboardPage() {
 						</div>
 					) : (
 						<div className="text-center py-8">
-							<p className="text-gray-500 mb-4">
+							<p className="text-gray-400 mb-4">
 								Nenhuma transação registrada
 							</p>
 							<Link
 								href="/transactions"
-								className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow font-medium"
+								className="inline-block px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"
 							>
 								Adicionar Transação
 							</Link>

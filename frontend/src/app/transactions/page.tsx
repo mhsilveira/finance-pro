@@ -189,16 +189,16 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-4">
+    <div className="min-h-screen bg-slate-950 pt-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold text-gray-100">
                 Transações
               </h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
+              <p className="mt-2 text-gray-400">
                 Gerencie suas receitas e despesas de forma inteligente
               </p>
             </div>
@@ -207,7 +207,7 @@ export default function TransactionsPage() {
               <button
                 onClick={handleExport}
                 disabled={transactions.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-green-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <span>📥</span>
                 <span>Exportar CSV</span>
@@ -216,7 +216,7 @@ export default function TransactionsPage() {
               <button
                 onClick={handleImportClick}
                 disabled={importing}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-yellow-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <span>📤</span>
                 <span>{importing ? 'Importando...' : 'Importar CSV'}</span>
@@ -224,7 +224,7 @@ export default function TransactionsPage() {
 
               <button
                 onClick={downloadCSVTemplate}
-                className="px-4 py-2 bg-gray-600 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors font-medium flex items-center gap-2"
+                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-slate-600 hover:bg-slate-700 transition-all font-medium flex items-center gap-2"
               >
                 <span>📄</span>
                 <span>Modelo CSV</span>
@@ -249,15 +249,15 @@ export default function TransactionsPage() {
 
         {/* Filters Section */}
         {!loading && !error && transactions.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">
                 Filtros
               </h2>
               {hasActiveFilters && (
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  className="text-sm text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
                 >
                   Limpar filtros
                 </button>
@@ -267,7 +267,7 @@ export default function TransactionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
               {/* Search */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Buscar
                 </label>
                 <input
@@ -275,19 +275,19 @@ export default function TransactionsPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Descrição..."
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 placeholder-gray-500 transition-all"
                 />
               </div>
 
               {/* Type Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Tipo
                 </label>
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todos</option>
                   <option value="income">Receitas</option>
@@ -297,13 +297,13 @@ export default function TransactionsPage() {
 
               {/* Category Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Categoria
                 </label>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todas</option>
                   {uniqueCategories.map((cat) => (
@@ -316,13 +316,13 @@ export default function TransactionsPage() {
 
               {/* Origin Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Origem
                 </label>
                 <select
                   value={originFilter}
                   onChange={(e) => setOriginFilter(e.target.value as 'all' | 'CREDIT_CARD' | 'CASH')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todas</option>
                   <option value="CREDIT_CARD">Cartão de Crédito</option>
@@ -332,7 +332,7 @@ export default function TransactionsPage() {
 
               {/* Date Range */}
               <div className="md:col-span-2 lg:col-span-3 xl:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Período
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -341,14 +341,14 @@ export default function TransactionsPage() {
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     placeholder="De"
-                    className="flex-1 min-w-0 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                    className="flex-1 min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                     title="Data inicial"
                   />
                   <input
                     type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                     title="Data final"
                   />
                 </div>
@@ -356,8 +356,8 @@ export default function TransactionsPage() {
             </div>
 
             {hasActiveFilters && (
-              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Exibindo {stats.total} de {transactions.length} transações
+              <div className="mt-4 text-sm text-gray-400">
+                Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de <span className="tabular-nums">{transactions.length}</span> transações
               </div>
             )}
           </div>
@@ -366,64 +366,65 @@ export default function TransactionsPage() {
         {/* Stats Cards */}
         {!loading && !error && transactions.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
+                  <p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
                     {stats.total}
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Receitas</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">
+                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
+                  <p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
                     {formatCurrency(stats.income)}
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Despesas</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">
+                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
+                  <p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
                     {formatCurrency(stats.expense)}
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
+            <div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
+              <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/90">Saldo</p>
-                  <p className="text-2xl font-bold text-white mt-1">
+                  <p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
+                  <p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
                     {formatCurrency(stats.balance)}
                   </p>
                 </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
@@ -434,15 +435,15 @@ export default function TransactionsPage() {
 
         {/* Loading state */}
         {loading && (
-          <div className="flex flex-col justify-center items-center py-16 bg-white rounded-xl shadow-sm border border-gray-200">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4" />
-            <p className="text-gray-600 font-medium">Carregando transações...</p>
+          <div className="flex flex-col justify-center items-center py-16 bg-slate-900 border border-slate-800 rounded-lg">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-500 mb-4" />
+            <p className="text-gray-400 font-medium">Carregando transações...</p>
           </div>
         )}
 
         {/* Error state */}
         {error && !loading && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 mb-6">
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
                 <svg
@@ -458,15 +459,15 @@ export default function TransactionsPage() {
                 </svg>
               </div>
               <div className="ml-3 flex-1">
-                <h3 className="text-base font-semibold text-red-800">
+                <h3 className="text-base font-semibold text-red-400">
                   Erro ao carregar transações
                 </h3>
-                <div className="mt-2 text-sm text-red-700">
+                <div className="mt-2 text-sm text-red-300">
                   {error}
                 </div>
                 <button
                   onClick={refetchTransactions}
-                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                  className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30 transition-all font-medium text-sm"
                 >
                   Tentar novamente
                 </button>
@@ -484,13 +485,13 @@ export default function TransactionsPage() {
                 onDelete={handleDelete}
               />
             ) : (
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center">
+                <p className="text-gray-400 mb-4">
                   Nenhuma transação encontrada com os filtros aplicados
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow font-medium"
+                  className="px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"
                 >
                   Limpar Filtros
                 </button>
