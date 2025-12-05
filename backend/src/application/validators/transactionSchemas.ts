@@ -1,9 +1,6 @@
-import { Categories } from '@shared/constants/categories'
 import { z } from 'zod'
 
 const originEnum = z.enum(['CREDIT_CARD', 'CASH'])
-
-const CATEGORY_KEYS = Object.keys(Categories)
 
 const amountSchema = z.preprocess(
   val => {
@@ -29,11 +26,7 @@ export const createTransactionSchema = z
     description: z.string().min(1),
     amount: amountSchema, // retorna string (ex: "85.50") -> converte pra Decimal128 no repo
     type: z.enum(['income', 'expense']),
-    category: z
-      .string()
-      .refine(v => CATEGORY_KEYS.includes(v), {
-        message: 'Categoria inválida'
-      }),
+    category: z.string().min(1, 'Categoria é obrigatória'),
     date: z
       .string()
       .datetime()
@@ -63,7 +56,7 @@ export const updateTransactionSchema = z
     description: z.string().min(1).optional(),
     amount: amountSchema.optional(),
     type: z.enum(['income', 'expense']).optional(),
-    category: z.nativeEnum(Categories).optional(),
+    category: z.string().min(1).optional(),
     date: z
       .string()
       .datetime()

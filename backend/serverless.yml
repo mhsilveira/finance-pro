@@ -71,7 +71,16 @@ functions:
       events:
         - http:
             path: reports
-            method: get          
+            method: get
+            cors: true
+
+  getCategories:
+    handler: src/interface/lambda/getCategories.handler
+    events:
+      - http:
+          path: categories
+          method: get
+          cors: true
 
 custom:
   serverless-offline:

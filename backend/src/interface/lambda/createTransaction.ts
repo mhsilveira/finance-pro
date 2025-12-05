@@ -3,6 +3,7 @@ import { createTransactionSchema } from "@application/validators/transactionSche
 import { CreateTransaction } from "@domain/use-cases/CreateTransaction";
 import { connectMongo } from "@infrastructure/database/mongodb/connection";
 import { TransactionRepository } from "@infrastructure/database/mongodb/repositories/TransactionRepository";
+import { CategoryRepository } from "@infrastructure/database/mongodb/repositories/CategoryRepository";
 import { badRequest, json, serverError } from "@infrastructure/http/httpResponse";
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 
@@ -19,7 +20,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 		const { userId, description, amount, type, category, date, card, origin } = parsed.data;
 
 		const repo = new TransactionRepository();
-		const useCase = new CreateTransaction(repo);
+		const categoryRepo = new CategoryRepository();
+
+		// Seed categories if needed
+		await categoryRepo.seedDefaultCategories();
+
+		const useCase = new CreateTransaction(repo, categoryRepo);
 
 		const created = await useCase.execute({
 			userId,

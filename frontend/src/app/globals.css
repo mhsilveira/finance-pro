@@ -1,17 +1,53 @@
 @import "tailwindcss";
 
 @layer base {
-	html,
-	body {
-		@apply min-h-screen bg-gray-50 text-gray-900 transition-colors;
+	:root {
+		/* Light mode - Inspirado em Notion/Linear */
+		--bg-primary: 255 255 255; /* white */
+		--bg-secondary: 249 250 251; /* gray-50 */
+		--bg-tertiary: 243 244 246; /* gray-100 */
+		--bg-hover: 239 240 245; /* subtle hover */
+
+		--text-primary: 17 24 39; /* gray-900 */
+		--text-secondary: 75 85 99; /* gray-600 */
+		--text-tertiary: 156 163 175; /* gray-400 */
+
+		--border-primary: 229 231 235; /* gray-200 */
+		--border-secondary: 243 244 246; /* gray-100 */
+
+		--accent-blue: 59 130 246; /* blue-500 */
+		--accent-purple: 139 92 246; /* violet-500 */
+		--accent-green: 34 197 94; /* green-500 */
+		--accent-red: 239 68 68; /* red-500 */
+		--accent-amber: 245 158 11; /* amber-500 */
 	}
 
 	html.dark {
-		@apply bg-gray-950 text-gray-100;
+		/* Dark mode - Inspirado em Notion/Linear */
+		--bg-primary: 17 24 39; /* gray-900 */
+		--bg-secondary: 31 41 55; /* gray-800 */
+		--bg-tertiary: 55 65 81; /* gray-700 */
+		--bg-hover: 75 85 99; /* subtle hover */
+
+		--text-primary: 243 244 246; /* gray-100 */
+		--text-secondary: 209 213 219; /* gray-300 */
+		--text-tertiary: 156 163 175; /* gray-400 */
+
+		--border-primary: 55 65 81; /* gray-700 */
+		--border-secondary: 75 85 99; /* gray-600 */
+
+		--accent-blue: 96 165 250; /* blue-400 */
+		--accent-purple: 167 139 250; /* violet-400 */
+		--accent-green: 74 222 128; /* green-400 */
+		--accent-red: 248 113 113; /* red-400 */
+		--accent-amber: 251 191 36; /* amber-400 */
 	}
 
-	html.dark body {
-		@apply bg-gray-950 text-gray-100;
+	html,
+	body {
+		@apply min-h-screen transition-colors duration-200;
+		background-color: rgb(var(--bg-secondary));
+		color: rgb(var(--text-primary));
 	}
 
 	* {
@@ -19,59 +55,59 @@
 	}
 
 	button {
-		@apply cursor-pointer;
+		@apply cursor-pointer transition-colors duration-150;
+	}
+
+	/* Input and Select styles */
+	input,
+	select,
+	textarea {
+		background-color: rgb(var(--bg-primary));
+		color: rgb(var(--text-primary));
+		border-color: rgb(var(--border-primary));
+	}
+
+	input::placeholder,
+	select::placeholder,
+	textarea::placeholder {
+		color: rgb(var(--text-tertiary));
+	}
+
+	input:focus,
+	select:focus,
+	textarea:focus {
+		outline: none;
+		border-color: rgb(var(--accent-blue));
+		ring: 2px;
+		ring-color: rgb(var(--accent-blue) / 0.1);
+	}
+
+	/* Card styles */
+	.card {
+		background-color: rgb(var(--bg-primary));
+		border-color: rgb(var(--border-primary));
+		@apply rounded-lg shadow-sm;
+	}
+
+	/* Button styles */
+	.btn-primary {
+		background-color: rgb(var(--accent-blue));
+		color: white;
+		@apply px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
+	}
+
+	.btn-secondary {
+		background-color: rgb(var(--bg-tertiary));
+		color: rgb(var(--text-primary));
+		@apply px-4 py-2 rounded-lg font-medium hover:opacity-80 transition-opacity;
+	}
+
+	/* Container */
+	.container {
+		@apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
 	}
 }
 
-/* Dark mode color overrides */
 .dark {
 	color-scheme: dark;
-}
-
-.dark .bg-white {
-	@apply bg-gray-900;
-}
-
-.dark .bg-gray-50 {
-	@apply bg-gray-900;
-}
-
-.dark .bg-gray-100 {
-	@apply bg-gray-800;
-}
-
-.dark .text-gray-900 {
-	@apply text-gray-100;
-}
-
-.dark .text-gray-800 {
-	@apply text-gray-200;
-}
-
-.dark .text-gray-700 {
-	@apply text-gray-300;
-}
-
-.dark .text-gray-600 {
-	@apply text-gray-400;
-}
-
-.dark .text-gray-500 {
-	@apply text-gray-500;
-}
-
-.dark .border-gray-200 {
-	@apply border-gray-700;
-}
-
-.dark .border-gray-100 {
-	@apply border-gray-800;
-}
-
-.dark .bg-gradient-to-br.from-gray-50 {
-	@apply from-gray-950;
-}
-
-.dark .bg-gradient-to-br.to-gray-100 {
-	@apply to-gray-900;
 }

@@ -1,7 +1,7 @@
 import { Transaction } from '@domain/entities/Transaction'
 import { ITransactionRepository } from '@domain/repositories/ITransactionRepository'
-import { Categories } from '@shared/constants/categories'
 import { randomBytes } from 'crypto'
+import { CategoryRepository } from '@infrastructure/database/mongodb/repositories/CategoryRepository'
 
 function normalizeAmount (val: number | string): number {
   if (typeof val === 'number') return Number(val)
@@ -16,7 +16,10 @@ function toMonthYear (d: Date): string {
 }
 
 export class CreateTransaction {
-  constructor (private readonly repo: ITransactionRepository) {}
+  constructor (
+    private readonly repo: ITransactionRepository,
+    private readonly categoryRepo: CategoryRepository
+  ) {}
 
   async execute (params: {
     userId: string
@@ -28,13 +31,14 @@ export class CreateTransaction {
     category: string
     date: Date
   }): Promise<Transaction> {
+    // Validar se a categoria existe
+    const category = await this.categoryRepo.findByKey(params.category)
+    if (!category) {
+      throw new Error(`Categoria inválida: ${params.category}`)
+    }
+
     const id = randomBytes(12).toString('hex')
-
     const amountNumber = normalizeAmount(params.amount)
-    const monthYear = toMonthYear(params.date)
-
-    const categoryKey = params.category as keyof typeof Categories
-    const categoryName = (Categories as any)[categoryKey] ?? params.category
 
     const tx = new Transaction(
       id,
@@ -43,7 +47,7 @@ export class CreateTransaction {
       amountNumber,
       params.type,
       params.origin === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'CASH',
-      categoryName,
+      category.name, // Usa o nome da categoria do banco
       params.date,
       new Date(),
       new Date(),
