@@ -4,6 +4,8 @@ import type {
   CreateTransactionPayload
 } from '../types/transaction'
 
+export type { CreateTransactionPayload } from '../types/transaction'
+
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return process.env.NEXT_PUBLIC_API_BASE_URL || ''
