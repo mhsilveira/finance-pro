@@ -4,7 +4,7 @@ import { ITransactionRepository } from "@domain/repositories/ITransactionReposit
 export class ListTransactions {
 	constructor(private readonly repo: ITransactionRepository) {}
 
-	async execute(userId: string): Promise<Transaction[]> {
-		return this.repo.findByUserId(userId);
+	async execute(userId: string, options?: { limit?: number; skip?: number }): Promise<Transaction[]> {
+		return this.repo.findByUserId(userId, options);
 	}
 }

@@ -11,9 +11,40 @@ const getBaseUrl = () => {
   return process.env.NEXT_PUBLIC_API_BASE_URL || ''
 }
 
-export async function getTransactions (userId: string): Promise<Transaction[]> {
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasMore: boolean
+  }
+}
+
+export async function getTransactions (
+  userId: string,
+  options?: { page?: number; limit?: number }
+): Promise<PaginatedResponse<Transaction>> {
   const base = getBaseUrl()
-  const res = await fetch(`${base}/transactions?userId=${userId}`, {
+  const page = options?.page || 1
+  const limit = options?.limit || 50
+
+  const res = await fetch(
+    `${base}/transactions?userId=${userId}&page=${page}&limit=${limit}`,
+    { cache: 'no-store' }
+  )
+
+  if (!res.ok) {
+    throw new Error(`Erro ${res.status}: ${res.statusText}`)
+  }
+
+  return res.json()
+}
+
+export async function getAllTransactions (userId: string): Promise<Transaction[]> {
+  const base = getBaseUrl()
+  const res = await fetch(`${base}/transactions?userId=${userId}&limit=9999`, {
     cache: 'no-store'
   })
 
@@ -21,7 +52,8 @@ export async function getTransactions (userId: string): Promise<Transaction[]> {
     throw new Error(`Erro ${res.status}: ${res.statusText}`)
   }
 
-  return res.json()
+  const response = await res.json()
+  return response.data || response
 }
 
 export async function createTransaction (

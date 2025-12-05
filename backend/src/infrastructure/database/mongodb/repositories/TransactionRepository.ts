@@ -111,14 +111,29 @@ export class TransactionRepository implements ITransactionRepository {
     return doc ? toDomain(doc) : null
   }
 
-  async findByUserId (userId: string): Promise<Transaction[]> {
-    const docs = await TransactionMongooseModel.find({
+  async findByUserId (userId: string, options?: { limit?: number; skip?: number }): Promise<Transaction[]> {
+    const query = TransactionMongooseModel.find({
       userId,
       deletedAt: null
     })
       .sort({ date: -1 })
-      .exec()
+
+    if (options?.limit) {
+      query.limit(options.limit)
+    }
+    if (options?.skip) {
+      query.skip(options.skip)
+    }
+
+    const docs = await query.exec()
     return docs.map(toDomain)
+  }
+
+  async countByUserId (userId: string): Promise<number> {
+    return await TransactionMongooseModel.countDocuments({
+      userId,
+      deletedAt: null
+    }).exec()
   }
 
   async update (

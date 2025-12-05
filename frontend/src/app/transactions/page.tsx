@@ -5,7 +5,7 @@ import { AddTransactionModal } from '@/components/AddTransactionModal'
 import { TransactionTable } from '@/components/TransactionTable'
 import { DevTools } from '@/components/DevTools'
 import type { Transaction } from '@/types/transaction'
-import { deleteTransaction, getTransactions, createTransaction } from '@/services/api'
+import { deleteTransaction, getAllTransactions, createTransaction } from '@/services/api'
 import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
 
 export default function TransactionsPage() {
@@ -32,7 +32,7 @@ export default function TransactionsPage() {
       try {
         setLoading(true)
         setError('')
-        const data = await getTransactions(userId)
+        const data = await getAllTransactions(userId)
         console.log('Transações recebidas:', data) // Debug
         setTransactions(data)
       } catch (err) {
@@ -49,7 +49,7 @@ export default function TransactionsPage() {
     try {
       setLoading(true)
       setError('')
-      const data = await getTransactions(userId)
+      const data = await getAllTransactions(userId)
       console.log('Transações recebidas:', data) // Debug
       setTransactions(data)
     } catch (err) {

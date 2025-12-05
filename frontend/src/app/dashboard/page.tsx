@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTransactions } from "@/services/api";
+import { getAllTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import Link from "next/link";
 import {
@@ -42,7 +42,7 @@ export default function DashboardPage() {
 			try {
 				setLoading(true);
 				setError("");
-				const data = await getTransactions(userId);
+				const data = await getAllTransactions(userId);
 				setTransactions(data);
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
