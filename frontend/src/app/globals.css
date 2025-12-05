@@ -1,29 +1,9 @@
 @import "tailwindcss";
 
 @layer base {
-	:root {
-		/* Light mode - Inspirado em Notion/Linear */
-		--bg-primary: 255 255 255; /* white */
-		--bg-secondary: 249 250 251; /* gray-50 */
-		--bg-tertiary: 243 244 246; /* gray-100 */
-		--bg-hover: 239 240 245; /* subtle hover */
-
-		--text-primary: 17 24 39; /* gray-900 */
-		--text-secondary: 75 85 99; /* gray-600 */
-		--text-tertiary: 156 163 175; /* gray-400 */
-
-		--border-primary: 229 231 235; /* gray-200 */
-		--border-secondary: 243 244 246; /* gray-100 */
-
-		--accent-blue: 59 130 246; /* blue-500 */
-		--accent-purple: 139 92 246; /* violet-500 */
-		--accent-green: 34 197 94; /* green-500 */
-		--accent-red: 239 68 68; /* red-500 */
-		--accent-amber: 245 158 11; /* amber-500 */
-	}
-
+	:root,
 	html.dark {
-		/* Dark mode - Inspirado em Notion/Linear */
+		/* Dark mode sempre - Inspirado em Notion/Linear */
 		--bg-primary: 17 24 39; /* gray-900 */
 		--bg-secondary: 31 41 55; /* gray-800 */
 		--bg-tertiary: 55 65 81; /* gray-700 */
@@ -78,8 +58,6 @@
 	textarea:focus {
 		outline: none;
 		border-color: rgb(var(--accent-blue));
-		ring: 2px;
-		ring-color: rgb(var(--accent-blue) / 0.1);
 	}
 
 	/* Card styles */

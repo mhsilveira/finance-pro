@@ -53,7 +53,7 @@ function toDomain (doc: any): Transaction {
   const date = safeDate(t?.date)
   const createdAt = safeDate(t?.createdAt)
   const updatedAt = safeDate(t?.updatedAt)
-  const category = t.categoryName
+  const category = t.categoryName || t.category // Use categoryName do banco
 
   return new Transaction(
     id,
@@ -62,12 +62,11 @@ function toDomain (doc: any): Transaction {
     amountFromDoc(t),
     t?.type,
     t?.origin,
-    t?.category, // category key
+    category, // category name (não key)
     date, // Date | null
     createdAt, // Date | null
     updatedAt, // Date | null
     t?.card
-    // note: if your Transaction entity accepts categoryName/accountId, adapt constructor accordingly
   )
 }
 
