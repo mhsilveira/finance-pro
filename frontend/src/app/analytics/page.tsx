@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getAllTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
+import { useState } from "react";
 import {
 	Chart as ChartJS,
 	CategoryScale,
@@ -14,6 +12,7 @@ import {
 	Legend,
 } from "chart.js";
 import { Bar, Pie } from "react-chartjs-2";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
 ChartJS.register(
 	CategoryScale,
@@ -26,29 +25,12 @@ ChartJS.register(
 );
 
 export default function AnalyticsPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
 	const [selectedPeriod, setSelectedPeriod] = useState<"all" | "month" | "quarter">("all");
 
 	const userId = "blanchimaah";
 
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getAllTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
-	}, []);
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	const formatCurrency = (value: number) => {
 		return new Intl.NumberFormat("pt-BR", {

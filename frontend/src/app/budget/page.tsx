@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAllTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
 interface Budget {
 	category: string;
@@ -18,15 +17,15 @@ interface Goal {
 }
 
 export default function BudgetPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
 	const [budgets, setBudgets] = useState<Budget[]>([]);
 	const [goals, setGoals] = useState<Goal[]>([]);
 	const [showBudgetModal, setShowBudgetModal] = useState(false);
 	const [showGoalModal, setShowGoalModal] = useState(false);
 
 	const userId = "blanchimaah";
+
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	// Load budgets and goals from localStorage
 	useEffect(() => {
@@ -49,23 +48,6 @@ export default function BudgetPage() {
 		if (savedGoals) {
 			setGoals(JSON.parse(savedGoals));
 		}
-	}, []);
-
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getAllTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
 	}, []);
 
 	const formatCurrency = (value: number) => {

@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getAllTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
 import Link from "next/link";
 import {
 	Chart as ChartJS,
@@ -17,6 +14,7 @@ import {
 	Legend,
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
 ChartJS.register(
 	CategoryScale,
@@ -31,28 +29,10 @@ ChartJS.register(
 );
 
 export default function DashboardPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-
 	const userId = "blanchimaah";
 
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getAllTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
-	}, []);
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	const formatCurrency = (value: number) => {
 		return new Intl.NumberFormat("pt-BR", {
