@@ -4,10 +4,10 @@ import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Cross2Icon } from '@radix-ui/react-icons'
 import { CATEGORIES, type CategoryKey, type CreateTransactionPayload } from '../types/transaction'
-import { createTransaction } from '../services/api'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
+import { useCreateTransaction } from '@/hooks/useTransactions'
 
 interface AddTransactionModalProps {
   userId: string
@@ -16,8 +16,8 @@ interface AddTransactionModalProps {
 
 export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalProps) {
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const createMutation = useCreateTransaction()
 
   const [formData, setFormData] = useState<Omit<CreateTransactionPayload, 'userId'>>({
     description: '',
@@ -32,7 +32,6 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
 
     try {
       const payload: CreateTransactionPayload = {
@@ -41,7 +40,7 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
         card: formData.origin === 'CREDIT_CARD' && formData.card ? formData.card : undefined
       }
 
-      await createTransaction(payload)
+      await createMutation.mutateAsync(payload)
 
       // Reset form
       setFormData({
@@ -58,8 +57,6 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
       onSuccess?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar transação')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -242,10 +239,10 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               </Dialog.Close>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={createMutation.isPending}
                 className="flex-1"
               >
-                {loading ? 'Salvando...' : 'Salvar'}
+                {createMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </form>

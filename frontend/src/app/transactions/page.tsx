@@ -1,25 +1,21 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { AddTransactionModal } from '@/components/AddTransactionModal'
 import { TransactionTable } from '@/components/TransactionTable'
 import { DevTools } from '@/components/DevTools'
 import type { Transaction } from '@/types/transaction'
-import { deleteTransaction, getTransactions, getAllTransactions, createTransaction, type PaginatedResponse } from '@/services/api'
 import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from '@/components/ui/pagination'
 import { TableSkeleton } from '@/components/ui/table-skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { usePaginatedTransactions, useAllTransactions, useDeleteTransaction, useCreateTransaction } from '@/hooks/useTransactions'
 
 export default function TransactionsPage() {
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]) // For filters and export
-  const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Transaction> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(10)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -35,52 +31,17 @@ export default function TransactionsPage() {
 
   const userId = 'blanchimaah'
 
-  // Fetch all transactions for filters/export
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const data = await getAllTransactions(userId)
-        setAllTransactions(data)
-      } catch (err) {
-        console.error('Error fetching all transactions:', err)
-      }
-    }
-    fetchAll()
-  }, [])
+  // React Query hooks
+  const { data: paginatedData, isLoading, error: queryError, refetch: refetchPaginated } = usePaginatedTransactions(userId, currentPage, pageSize)
+  const { data: allTransactions = [], refetch: refetchAll } = useAllTransactions(userId)
+  const deleteMutation = useDeleteTransaction()
+  const createMutation = useCreateTransaction()
 
-  // Fetch paginated data
-  useEffect(() => {
-    const fetchPage = async () => {
-      try {
-        setLoading(true)
-        setError('')
-        const data = await getTransactions(userId, { page: currentPage, limit: pageSize })
-        setPaginatedData(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPage()
-  }, [currentPage, pageSize])
+  const loading = isLoading
+  const error = queryError ? (queryError as Error).message : ''
 
   const refetchTransactions = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      const [paged, all] = await Promise.all([
-        getTransactions(userId, { page: currentPage, limit: pageSize }),
-        getAllTransactions(userId)
-      ])
-      setPaginatedData(paged)
-      setAllTransactions(all)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
-    } finally {
-      setLoading(false)
-    }
+    await Promise.all([refetchPaginated(), refetchAll()])
   }
 
   const handleDelete = async (id: string) => {
@@ -89,8 +50,7 @@ export default function TransactionsPage() {
     }
 
     try {
-      await deleteTransaction(id)
-      await refetchTransactions()
+      await deleteMutation.mutateAsync({ id, userId })
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao excluir transação')
     }
@@ -119,7 +79,7 @@ export default function TransactionsPage() {
 
       for (const transaction of newTransactions) {
         try {
-          await createTransaction(transaction)
+          await createMutation.mutateAsync(transaction)
           successCount++
         } catch (err) {
           errorCount++
@@ -510,85 +470,103 @@ export default function TransactionsPage() {
                 />
 
                 {/* Pagination - only show when no filters are active */}
-                {!hasActiveFilters && paginatedData && paginatedData.pagination.totalPages > 1 && (
-                  <div className="mt-6 flex justify-center">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-
-                        {/* Page numbers logic */}
-                        {(() => {
-                          const { totalPages } = paginatedData.pagination
-                          const pages: (number | 'ellipsis')[] = []
-
-                          if (totalPages <= 7) {
-                            // Show all pages if 7 or less
-                            for (let i = 1; i <= totalPages; i++) {
-                              pages.push(i)
-                            }
-                          } else {
-                            // Always show first page
-                            pages.push(1)
-
-                            if (currentPage > 3) {
-                              pages.push('ellipsis')
-                            }
-
-                            // Show pages around current page
-                            const start = Math.max(2, currentPage - 1)
-                            const end = Math.min(totalPages - 1, currentPage + 1)
-
-                            for (let i = start; i <= end; i++) {
-                              pages.push(i)
-                            }
-
-                            if (currentPage < totalPages - 2) {
-                              pages.push('ellipsis')
-                            }
-
-                            // Always show last page
-                            pages.push(totalPages)
-                          }
-
-                          return pages.map((page, idx) => (
-                            <PaginationItem key={idx}>
-                              {page === 'ellipsis' ? (
-                                <PaginationEllipsis />
-                              ) : (
-                                <PaginationLink
-                                  onClick={() => setCurrentPage(page)}
-                                  isActive={currentPage === page}
-                                  className="cursor-pointer"
-                                >
-                                  {page}
-                                </PaginationLink>
-                              )}
-                            </PaginationItem>
-                          ))
-                        })()}
-
-                        <PaginationItem>
-                          <PaginationNext
-                            onClick={() => setCurrentPage(p => Math.min(paginatedData.pagination.totalPages, p + 1))}
-                            disabled={!paginatedData.pagination.hasMore}
-                            className={!paginatedData.pagination.hasMore ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
-                  </div>
-                )}
-
-                {/* Pagination info */}
                 {!hasActiveFilters && paginatedData && (
-                  <div className="mt-4 text-center text-sm text-gray-400">
-                    Exibindo {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, paginatedData.pagination.total)} de {paginatedData.pagination.total} transações
+                  <div className="mt-6">
+                    {/* Page size selector */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>Exibir</span>
+                        <Select
+                          value={pageSize.toString()}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value))
+                            setCurrentPage(1)
+                          }}
+                          className="w-20 h-8"
+                        >
+                          <option value="5">5</option>
+                          <option value="10">10</option>
+                          <option value="25">25</option>
+                        </Select>
+                        <span>itens por página</span>
+                      </div>
+                    </div>
+
+                    {paginatedData.pagination.totalPages > 1 && (
+                      <div className="flex justify-center">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+
+                            {/* Page numbers logic */}
+                            {(() => {
+                              const { totalPages } = paginatedData.pagination
+                              const pages: (number | 'ellipsis')[] = []
+
+                              if (totalPages <= 7) {
+                                for (let i = 1; i <= totalPages; i++) {
+                                  pages.push(i)
+                                }
+                              } else {
+                                pages.push(1)
+
+                                if (currentPage > 3) {
+                                  pages.push('ellipsis')
+                                }
+
+                                const start = Math.max(2, currentPage - 1)
+                                const end = Math.min(totalPages - 1, currentPage + 1)
+
+                                for (let i = start; i <= end; i++) {
+                                  pages.push(i)
+                                }
+
+                                if (currentPage < totalPages - 2) {
+                                  pages.push('ellipsis')
+                                }
+
+                                pages.push(totalPages)
+                              }
+
+                              return pages.map((page, idx) => (
+                                <PaginationItem key={idx}>
+                                  {page === 'ellipsis' ? (
+                                    <PaginationEllipsis />
+                                  ) : (
+                                    <PaginationLink
+                                      onClick={() => setCurrentPage(page)}
+                                      isActive={currentPage === page}
+                                      className="cursor-pointer"
+                                    >
+                                      {page}
+                                    </PaginationLink>
+                                  )}
+                                </PaginationItem>
+                              ))
+                            })()}
+
+                            <PaginationItem>
+                              <PaginationNext
+                                onClick={() => setCurrentPage(p => Math.min(paginatedData.pagination.totalPages, p + 1))}
+                                disabled={!paginatedData.pagination.hasMore}
+                                className={!paginatedData.pagination.hasMore ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    )}
+
+                    {/* Pagination info */}
+                    <div className="mt-4 text-center text-sm text-gray-400">
+                      Exibindo {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, paginatedData.pagination.total)} de {paginatedData.pagination.total} transações
+                    </div>
                   </div>
                 )}
               </>
