@@ -22,15 +22,15 @@ export function exportTransactionsToCSV(transactions: Transaction[]): void {
 
 	// Convert transactions to CSV rows
 	const rows = transactions.map((t) => [
-		t.id,
-		t.date,
-		t.description,
-		t.amount.toString(),
-		t.type,
-		t.category,
-		t.origin,
+		t.id || '',
+		t.date || '',
+		t.description || '',
+		t.amount?.toString() || '0',
+		t.type || '',
+		t.category || '',
+		t.origin || '',
 		t.card || '',
-		t.createdAt,
+		t.createdAt || '',
 	]);
 
 	// Combine headers and rows
