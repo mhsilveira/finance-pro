@@ -1,6 +1,6 @@
 import { Transaction } from '@domain/entities/Transaction'
 import { ITransactionRepository } from '@domain/repositories/ITransactionRepository'
-import { Types } from 'mongoose'
+import mongoose, { Types } from 'mongoose'
 import { TransactionMongooseModel } from '../models/TransactionModel'
 
 function safeDate (input: any): Date | null {
@@ -19,21 +19,50 @@ function safeDate (input: any): Date | null {
   }
 }
 
+function toMonthYearFromDate (d?: Date | null): string | null {
+  const date = safeDate(d)
+  if (!date) return null
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+function decimalFromNumber (v: number): mongoose.Types.Decimal128 {
+  const s = Number(v).toFixed(2)
+  return mongoose.Types.Decimal128.fromString(s)
+}
+
+function amountFromDoc (t: any): number {
+  // t.amount pode ser Decimal128, string, number
+  if (t == null) return 0
+  const val = t.amount
+  if (val == null) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') return parseFloat(val)
+  // mongoose Decimal128 has toString()
+  if (typeof val.toString === 'function') {
+    const s = val.toString()
+    return parseFloat(s)
+  }
+  return Number(val)
+}
+
 function toDomain (doc: any): Transaction {
   const t = doc?.toObject ? doc.toObject() : doc
   const id = (t?._id || t?.id)?.toString?.() ?? String(t?._id ?? t?.id ?? '')
   const date = safeDate(t?.date)
   const createdAt = safeDate(t?.createdAt)
   const updatedAt = safeDate(t?.updatedAt)
+  const category = t.categoryName || t.category // Use categoryName do banco
 
   return new Transaction(
     id,
     t?.userId,
     t?.description,
-    Number(t?.amount),
+    amountFromDoc(t),
     t?.type,
     t?.origin,
-    t?.category,
+    category, // category name (não key)
     date, // Date | null
     createdAt, // Date | null
     updatedAt, // Date | null
@@ -43,22 +72,35 @@ function toDomain (doc: any): Transaction {
 
 export class TransactionRepository implements ITransactionRepository {
   async create (transaction: Transaction): Promise<Transaction> {
+    const monthYear = toMonthYearFromDate(transaction.date)
+
     const data: any = {
       userId: transaction.userId,
       description: transaction.description,
-      amount: transaction.amount,
+      // convert to Decimal128
+      amount: decimalFromNumber(transaction.amount as number),
+      currency: (transaction as any).currency ?? 'BRL',
       type: transaction.type,
-      category: transaction.category,
+      origin: (transaction as any).origin ?? null,
+      card: transaction.card ?? null,
+      // store both key and name if provided; if not, keep key as name
+      categoryId: transaction.category ?? null,
+      categoryName:
+        (transaction as any).categoryName ?? transaction.category ?? null,
       date: transaction.date ?? null,
-      origin: transaction.origin,
-      card: transaction.card,
+      monthYear: monthYear,
       createdAt: transaction.createdAt ?? new Date(),
-      updatedAt: transaction.updatedAt ?? new Date()
+      updatedAt: transaction.updatedAt ?? new Date(),
+      deletedAt: (transaction as any).deletedAt ?? null,
+      accountId: (transaction as any).accountId ?? 'default-wallet',
+      bank: (transaction as any).bank ?? null
     }
+
     // Se o id passado for válido ObjectId, usa; senão deixa o Mongo gerar
     if (transaction.id && Types.ObjectId.isValid(transaction.id)) {
       data._id = new Types.ObjectId(transaction.id)
     }
+
     const created = await TransactionMongooseModel.create(data)
     return toDomain(created)
   }
@@ -70,7 +112,10 @@ export class TransactionRepository implements ITransactionRepository {
   }
 
   async findByUserId (userId: string): Promise<Transaction[]> {
-    const docs = await TransactionMongooseModel.find({ userId })
+    const docs = await TransactionMongooseModel.find({
+      userId,
+      deletedAt: null
+    })
       .sort({ date: -1 })
       .exec()
     return docs.map(toDomain)
@@ -90,15 +135,34 @@ export class TransactionRepository implements ITransactionRepository {
       ...rest
     } = partial as any
 
-    if ('date' in rest && typeof rest.date === 'string') {
+    // handle date normalization
+    if ('date' in rest && rest.date) {
       const d = safeDate(rest.date)
       rest.date = d ?? null
+      // recompute monthYear when date is changed
+      rest.monthYear = toMonthYearFromDate(d) ?? rest.monthYear
+    }
+
+    // handle amount -> Decimal128
+    if ('amount' in rest && rest.amount !== undefined && rest.amount !== null) {
+      // normalize if string
+      const amt =
+        typeof rest.amount === 'string'
+          ? Number(String(rest.amount).replace(',', '.'))
+          : Number(rest.amount)
+      rest.amount = decimalFromNumber(amt)
     }
 
     if ('updatedAt' in rest && rest.updatedAt) {
       rest.updatedAt = safeDate(rest.updatedAt) ?? new Date()
     } else {
       rest.updatedAt = new Date()
+    }
+
+    // if categoryName provided keep it; if only category (key) provided, set categoryName = key (UI / use-case may set better)
+    if ('category' in rest && rest.category && !rest.categoryName) {
+      rest.categoryId = rest.category
+      rest.categoryName = rest.category
     }
 
     const doc = await TransactionMongooseModel.findByIdAndUpdate(
