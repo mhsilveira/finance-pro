@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { AddTransactionModal } from '@/components/AddTransactionModal'
 import { TransactionTable } from '@/components/TransactionTable'
+import { DevTools } from '@/components/DevTools'
 import type { Transaction } from '@/types/transaction'
 import { deleteTransaction, getTransactions, createTransaction } from '@/services/api'
 import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
@@ -498,6 +499,9 @@ export default function TransactionsPage() {
           </>
         )}
       </div>
+
+      {/* Dev Tools - Botão flutuante */}
+      <DevTools userId={userId} onUpdate={refetchTransactions} />
     </div>
   )
 }
