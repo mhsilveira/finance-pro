@@ -5,6 +5,9 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Cross2Icon } from '@radix-ui/react-icons'
 import { CATEGORIES, type CategoryKey, type CreateTransactionPayload } from '../types/transaction'
 import { createTransaction } from '../services/api'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select } from './ui/select'
 
 interface AddTransactionModalProps {
   userId: string
@@ -70,9 +73,9 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button className="px-4 py-2 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold shadow-lg shadow-yellow-500/20">
+        <Button>
           + Nova Transação
-        </button>
+        </Button>
       </Dialog.Trigger>
 
       <Dialog.Portal>
@@ -98,13 +101,12 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               <label htmlFor="description" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Descrição *
               </label>
-              <input
+              <Input
                 id="description"
                 type="text"
                 required
                 value={formData.description}
                 onChange={(e) => handleChange('description', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 placeholder-gray-500 transition-all"
                 placeholder="Ex: Compras no supermercado"
               />
             </div>
@@ -114,15 +116,15 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               <label htmlFor="amount" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Valor (R$) *
               </label>
-              <input
+              <Input
                 id="amount"
                 type="number"
                 step="0.01"
                 required
                 value={formData.amount}
                 onChange={(e) => handleChange('amount', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 placeholder-gray-500 tabular-nums transition-all"
                 placeholder="0,00"
+                className="tabular-nums"
               />
             </div>
 
@@ -162,15 +164,14 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               <label htmlFor="origin" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Origem *
               </label>
-              <select
+              <Select
                 id="origin"
                 value={formData.origin}
                 onChange={(e) => handleChange('origin', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 transition-all"
               >
                 <option value="CASH">Dinheiro</option>
                 <option value="CREDIT_CARD">Cartão de Crédito</option>
-              </select>
+              </Select>
             </div>
 
             {/* Card (condicional) */}
@@ -179,12 +180,11 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
                 <label htmlFor="card" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Cartão
                 </label>
-                <input
+                <Input
                   id="card"
                   type="text"
                   value={formData.card}
                   onChange={(e) => handleChange('card', e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 placeholder-gray-500 transition-all"
                   placeholder="Nome do cartão"
                 />
               </div>
@@ -195,18 +195,17 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               <label htmlFor="category" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Categoria *
               </label>
-              <select
+              <Select
                 id="category"
                 value={formData.category}
                 onChange={(e) => handleChange('category', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 transition-all"
               >
                 {Object.entries(CATEGORIES).map(([key, label]) => (
                   <option key={key} value={key}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {/* Data */}
@@ -214,13 +213,12 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
               <label htmlFor="date" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Data *
               </label>
-              <input
+              <Input
                 id="date"
                 type="date"
                 required
                 value={formData.date}
                 onChange={(e) => handleChange('date', e.target.value)}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none text-gray-100 transition-all"
               />
             </div>
 
@@ -234,20 +232,21 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
             {/* Actions */}
             <div className="flex gap-3 pt-4">
               <Dialog.Close asChild>
-                <button
+                <Button
                   type="button"
-                  className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:bg-slate-700 transition-all font-medium"
+                  variant="outline"
+                  className="flex-1"
                 >
                   Cancelar
-                </button>
+                </Button>
               </Dialog.Close>
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
+                className="flex-1"
               >
                 {loading ? 'Salvando...' : 'Salvar'}
-              </button>
+              </Button>
             </div>
           </form>
         </Dialog.Content>

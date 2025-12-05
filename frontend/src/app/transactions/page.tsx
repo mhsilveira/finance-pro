@@ -5,13 +5,21 @@ import { AddTransactionModal } from '@/components/AddTransactionModal'
 import { TransactionTable } from '@/components/TransactionTable'
 import { DevTools } from '@/components/DevTools'
 import type { Transaction } from '@/types/transaction'
-import { deleteTransaction, getAllTransactions, createTransaction } from '@/services/api'
+import { deleteTransaction, getTransactions, getAllTransactions, createTransaction, type PaginatedResponse } from '@/services/api'
 import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from '@/components/ui/pagination'
+import { TableSkeleton } from '@/components/ui/table-skeleton'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]) // For filters and export
+  const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Transaction> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -27,14 +35,27 @@ export default function TransactionsPage() {
 
   const userId = 'blanchimaah'
 
+  // Fetch all transactions for filters/export
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchAll = async () => {
+      try {
+        const data = await getAllTransactions(userId)
+        setAllTransactions(data)
+      } catch (err) {
+        console.error('Error fetching all transactions:', err)
+      }
+    }
+    fetchAll()
+  }, [])
+
+  // Fetch paginated data
+  useEffect(() => {
+    const fetchPage = async () => {
       try {
         setLoading(true)
         setError('')
-        const data = await getAllTransactions(userId)
-        console.log('Transações recebidas:', data) // Debug
-        setTransactions(data)
+        const data = await getTransactions(userId, { page: currentPage, limit: pageSize })
+        setPaginatedData(data)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
       } finally {
@@ -42,16 +63,19 @@ export default function TransactionsPage() {
       }
     }
 
-    fetchTransactions()
-  }, [])
+    fetchPage()
+  }, [currentPage, pageSize])
 
   const refetchTransactions = async () => {
     try {
       setLoading(true)
       setError('')
-      const data = await getAllTransactions(userId)
-      console.log('Transações recebidas:', data) // Debug
-      setTransactions(data)
+      const [paged, all] = await Promise.all([
+        getTransactions(userId, { page: currentPage, limit: pageSize }),
+        getAllTransactions(userId)
+      ])
+      setPaginatedData(paged)
+      setAllTransactions(all)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
     } finally {
@@ -66,7 +90,7 @@ export default function TransactionsPage() {
 
     try {
       await deleteTransaction(id)
-      setTransactions(prev => prev.filter(t => t.id !== id))
+      await refetchTransactions()
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao excluir transação')
     }
@@ -118,8 +142,8 @@ export default function TransactionsPage() {
     }
   }
 
-  // Apply filters
-  const filteredTransactions = transactions.filter((t) => {
+  // Apply filters to all transactions (for stats and export)
+  const filteredTransactions = allTransactions.filter((t) => {
     // Search filter
     if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false
@@ -152,7 +176,7 @@ export default function TransactionsPage() {
   })
 
   // Get unique categories for filter dropdown
-  const uniqueCategories = Array.from(new Set(transactions.map(t => t.category).filter(Boolean)))
+  const uniqueCategories = Array.from(new Set(allTransactions.map(t => t.category).filter(Boolean)))
 
   // Calcular estatísticas (using filtered transactions)
   const income = filteredTransactions
@@ -170,6 +194,10 @@ export default function TransactionsPage() {
     balance: income - expense
   }
 
+  // Transactions to display (either paginated or filtered)
+  const hasActiveFilters = searchTerm || typeFilter !== 'all' || categoryFilter !== 'all' || originFilter !== 'all' || dateFrom || dateTo
+  const displayTransactions = hasActiveFilters ? filteredTransactions : (paginatedData?.data || [])
+
   const clearFilters = () => {
     setSearchTerm('')
     setTypeFilter('all')
@@ -178,8 +206,6 @@ export default function TransactionsPage() {
     setDateFrom('')
     setDateTo('')
   }
-
-  const hasActiveFilters = searchTerm || typeFilter !== 'all' || categoryFilter !== 'all' || originFilter !== 'all' || dateFrom || dateTo
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -204,31 +230,33 @@ export default function TransactionsPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {/* Export/Import Buttons */}
-              <button
+              <Button
                 onClick={handleExport}
-                disabled={transactions.length === 0}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-green-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                disabled={allTransactions.length === 0}
+                variant="outline"
+                className="hover:border-green-500/50"
               >
                 <span>📥</span>
                 <span>Exportar CSV</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={handleImportClick}
                 disabled={importing}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-yellow-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                variant="outline"
+                className="hover:border-yellow-500/50"
               >
                 <span>📤</span>
                 <span>{importing ? 'Importando...' : 'Importar CSV'}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 onClick={downloadCSVTemplate}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-slate-600 hover:bg-slate-700 transition-all font-medium flex items-center gap-2"
+                variant="outline"
               >
                 <span>📄</span>
                 <span>Modelo CSV</span>
-              </button>
+              </Button>
 
               <AddTransactionModal
                 userId={userId}
@@ -248,19 +276,21 @@ export default function TransactionsPage() {
         </div>
 
         {/* Filters Section */}
-        {!loading && !error && transactions.length > 0 && (
+        {!loading && !error && allTransactions.length > 0 && (
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">
                 Filtros
               </h2>
               {hasActiveFilters && (
-                <button
+                <Button
                   onClick={clearFilters}
-                  className="text-sm text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
+                  variant="ghost"
+                  size="sm"
+                  className="text-yellow-400 hover:text-yellow-300"
                 >
                   Limpar filtros
-                </button>
+                </Button>
               )}
             </div>
 
@@ -270,12 +300,11 @@ export default function TransactionsPage() {
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Buscar
                 </label>
-                <input
+                <Input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Descrição..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 placeholder-gray-500 transition-all"
                 />
               </div>
 
@@ -284,15 +313,14 @@ export default function TransactionsPage() {
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Tipo
                 </label>
-                <select
+                <Select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todos</option>
                   <option value="income">Receitas</option>
                   <option value="expense">Despesas</option>
-                </select>
+                </Select>
               </div>
 
               {/* Category Filter */}
@@ -300,10 +328,9 @@ export default function TransactionsPage() {
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Categoria
                 </label>
-                <select
+                <Select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todas</option>
                   {uniqueCategories.map((cat) => (
@@ -311,7 +338,7 @@ export default function TransactionsPage() {
                       {cat}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               {/* Origin Filter */}
@@ -319,15 +346,14 @@ export default function TransactionsPage() {
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
                   Origem
                 </label>
-                <select
+                <Select
                   value={originFilter}
                   onChange={(e) => setOriginFilter(e.target.value as 'all' | 'CREDIT_CARD' | 'CASH')}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
                 >
                   <option value="all">Todas</option>
                   <option value="CREDIT_CARD">Cartão de Crédito</option>
                   <option value="CASH">Dinheiro</option>
-                </select>
+                </Select>
               </div>
 
               {/* Date Range */}
@@ -336,19 +362,19 @@ export default function TransactionsPage() {
                   Período
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <input
+                  <Input
                     type="date"
                     value={dateFrom}
                     onChange={(e) => setDateFrom(e.target.value)}
                     placeholder="De"
-                    className="flex-1 min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
+                    className="flex-1 min-w-0"
                     title="Data inicial"
                   />
-                  <input
+                  <Input
                     type="date"
                     value={dateTo}
                     onChange={(e) => setDateTo(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
+                    className="flex-1"
                     title="Data final"
                   />
                 </div>
@@ -357,14 +383,14 @@ export default function TransactionsPage() {
 
             {hasActiveFilters && (
               <div className="mt-4 text-sm text-gray-400">
-                Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de <span className="tabular-nums">{transactions.length}</span> transações
+                Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de <span className="tabular-nums">{allTransactions.length}</span> transações
               </div>
             )}
           </div>
         )}
 
         {/* Stats Cards */}
-        {!loading && !error && transactions.length > 0 && (
+        {!loading && !error && allTransactions.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
               <div className="flex items-center justify-between">
@@ -434,12 +460,7 @@ export default function TransactionsPage() {
         )}
 
         {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col justify-center items-center py-16 bg-slate-900 border border-slate-800 rounded-lg">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-500 mb-4" />
-            <p className="text-gray-400 font-medium">Carregando transações...</p>
-          </div>
-        )}
+        {loading && <TableSkeleton rows={10} />}
 
         {/* Error state */}
         {error && !loading && (
@@ -465,12 +486,14 @@ export default function TransactionsPage() {
                 <div className="mt-2 text-sm text-red-300">
                   {error}
                 </div>
-                <button
+                <Button
                   onClick={refetchTransactions}
-                  className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30 transition-all font-medium text-sm"
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30"
                 >
                   Tentar novamente
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -479,22 +502,111 @@ export default function TransactionsPage() {
         {/* Table */}
         {!loading && !error && (
           <>
-            {filteredTransactions.length > 0 ? (
-              <TransactionTable
-                transactions={filteredTransactions}
-                onDelete={handleDelete}
-              />
+            {displayTransactions.length > 0 ? (
+              <>
+                <TransactionTable
+                  transactions={displayTransactions}
+                  onDelete={handleDelete}
+                />
+
+                {/* Pagination - only show when no filters are active */}
+                {!hasActiveFilters && paginatedData && paginatedData.pagination.totalPages > 1 && (
+                  <div className="mt-6 flex justify-center">
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+
+                        {/* Page numbers logic */}
+                        {(() => {
+                          const { totalPages } = paginatedData.pagination
+                          const pages: (number | 'ellipsis')[] = []
+
+                          if (totalPages <= 7) {
+                            // Show all pages if 7 or less
+                            for (let i = 1; i <= totalPages; i++) {
+                              pages.push(i)
+                            }
+                          } else {
+                            // Always show first page
+                            pages.push(1)
+
+                            if (currentPage > 3) {
+                              pages.push('ellipsis')
+                            }
+
+                            // Show pages around current page
+                            const start = Math.max(2, currentPage - 1)
+                            const end = Math.min(totalPages - 1, currentPage + 1)
+
+                            for (let i = start; i <= end; i++) {
+                              pages.push(i)
+                            }
+
+                            if (currentPage < totalPages - 2) {
+                              pages.push('ellipsis')
+                            }
+
+                            // Always show last page
+                            pages.push(totalPages)
+                          }
+
+                          return pages.map((page, idx) => (
+                            <PaginationItem key={idx}>
+                              {page === 'ellipsis' ? (
+                                <PaginationEllipsis />
+                              ) : (
+                                <PaginationLink
+                                  onClick={() => setCurrentPage(page)}
+                                  isActive={currentPage === page}
+                                  className="cursor-pointer"
+                                >
+                                  {page}
+                                </PaginationLink>
+                              )}
+                            </PaginationItem>
+                          ))
+                        })()}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => setCurrentPage(p => Math.min(paginatedData.pagination.totalPages, p + 1))}
+                            disabled={!paginatedData.pagination.hasMore}
+                            className={!paginatedData.pagination.hasMore ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+
+                {/* Pagination info */}
+                {!hasActiveFilters && paginatedData && (
+                  <div className="mt-4 text-center text-sm text-gray-400">
+                    Exibindo {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, paginatedData.pagination.total)} de {paginatedData.pagination.total} transações
+                  </div>
+                )}
+              </>
             ) : (
               <div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center">
                 <p className="text-gray-400 mb-4">
-                  Nenhuma transação encontrada com os filtros aplicados
+                  {hasActiveFilters
+                    ? 'Nenhuma transação encontrada com os filtros aplicados'
+                    : 'Nenhuma transação encontrada'
+                  }
                 </p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"
-                >
-                  Limpar Filtros
-                </button>
+                {hasActiveFilters && (
+                  <Button
+                    onClick={clearFilters}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
               </div>
             )}
           </>
