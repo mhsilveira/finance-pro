@@ -13,22 +13,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { usePaginatedTransactions, useAllTransactions, useDeleteTransaction, useCreateTransaction } from '@/hooks/useTransactions'
+import { usePersistedFilters } from '@/hooks/usePersistedFilters'
 
 export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
 
   // Edit modal state
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [originFilter, setOriginFilter] = useState<'all' | 'CREDIT_CARD' | 'CASH'>('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  // Persisted filters
+  const { filters, setFilters, resetFilters, hasActiveFilters, isLoaded } = usePersistedFilters()
 
   // CSV Import
   const [importing, setImporting] = useState(false)
@@ -37,12 +32,12 @@ export default function TransactionsPage() {
   const userId = 'blanchimaah'
 
   // React Query hooks
-  const { data: paginatedData, isLoading, error: queryError, refetch: refetchPaginated } = usePaginatedTransactions(userId, currentPage, pageSize)
+  const { data: paginatedData, isLoading, error: queryError, refetch: refetchPaginated } = usePaginatedTransactions(userId, currentPage, filters.pageSize)
   const { data: allTransactions = [], refetch: refetchAll } = useAllTransactions(userId)
   const deleteMutation = useDeleteTransaction()
   const createMutation = useCreateTransaction()
 
-  const loading = isLoading
+  const loading = isLoading || !isLoaded
   const error = queryError ? (queryError as Error).message : ''
 
   const refetchTransactions = async () => {
@@ -115,30 +110,30 @@ export default function TransactionsPage() {
   // Apply filters to all transactions (for stats and export)
   const filteredTransactions = allTransactions.filter((t) => {
     // Search filter
-    if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (filters.searchTerm && !t.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) {
       return false
     }
 
     // Type filter
-    if (typeFilter !== 'all' && t.type !== typeFilter) {
+    if (filters.typeFilter !== 'all' && t.type !== filters.typeFilter) {
       return false
     }
 
     // Category filter
-    if (categoryFilter !== 'all' && t.category !== categoryFilter) {
+    if (filters.categoryFilter !== 'all' && t.category !== filters.categoryFilter) {
       return false
     }
 
     // Origin filter
-    if (originFilter !== 'all' && t.origin !== originFilter) {
+    if (filters.originFilter !== 'all' && t.origin !== filters.originFilter) {
       return false
     }
 
     // Date range filter
-    if (dateFrom && new Date(t.date) < new Date(dateFrom)) {
+    if (filters.dateFrom && new Date(t.date) < new Date(filters.dateFrom)) {
       return false
     }
-    if (dateTo && new Date(t.date) > new Date(dateTo)) {
+    if (filters.dateTo && new Date(t.date) > new Date(filters.dateTo)) {
       return false
     }
 
@@ -165,17 +160,7 @@ export default function TransactionsPage() {
   }
 
   // Transactions to display (either paginated or filtered)
-  const hasActiveFilters = searchTerm || typeFilter !== 'all' || categoryFilter !== 'all' || originFilter !== 'all' || dateFrom || dateTo
   const displayTransactions = hasActiveFilters ? filteredTransactions : (paginatedData?.data || [])
-
-  const clearFilters = () => {
-    setSearchTerm('')
-    setTypeFilter('all')
-    setCategoryFilter('all')
-    setOriginFilter('all')
-    setDateFrom('')
-    setDateTo('')
-  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -254,7 +239,7 @@ export default function TransactionsPage() {
               </h2>
               {hasActiveFilters && (
                 <Button
-                  onClick={clearFilters}
+                  onClick={resetFilters}
                   variant="ghost"
                   size="sm"
                   className="text-yellow-400 hover:text-yellow-300"
@@ -272,8 +257,8 @@ export default function TransactionsPage() {
                 </label>
                 <Input
                   type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters({ searchTerm: e.target.value })}
                   placeholder="Descrição..."
                 />
               </div>
@@ -284,8 +269,8 @@ export default function TransactionsPage() {
                   Tipo
                 </label>
                 <Select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
+                  value={filters.typeFilter}
+                  onChange={(e) => setFilters({ typeFilter: e.target.value as 'all' | 'income' | 'expense' })}
                 >
                   <option value="all">Todos</option>
                   <option value="income">Receitas</option>
@@ -299,8 +284,8 @@ export default function TransactionsPage() {
                   Categoria
                 </label>
                 <Select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  value={filters.categoryFilter}
+                  onChange={(e) => setFilters({ categoryFilter: e.target.value })}
                 >
                   <option value="all">Todas</option>
                   {uniqueCategories.map((cat) => (
@@ -317,8 +302,8 @@ export default function TransactionsPage() {
                   Origem
                 </label>
                 <Select
-                  value={originFilter}
-                  onChange={(e) => setOriginFilter(e.target.value as 'all' | 'CREDIT_CARD' | 'CASH')}
+                  value={filters.originFilter}
+                  onChange={(e) => setFilters({ originFilter: e.target.value as 'all' | 'CREDIT_CARD' | 'CASH' })}
                 >
                   <option value="all">Todas</option>
                   <option value="CREDIT_CARD">Cartão de Crédito</option>
@@ -334,16 +319,16 @@ export default function TransactionsPage() {
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
+                    value={filters.dateFrom}
+                    onChange={(e) => setFilters({ dateFrom: e.target.value })}
                     placeholder="De"
                     className="flex-1 min-w-0"
                     title="Data inicial"
                   />
                   <Input
                     type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
+                    value={filters.dateTo}
+                    onChange={(e) => setFilters({ dateTo: e.target.value })}
                     className="flex-1"
                     title="Data final"
                   />
@@ -488,9 +473,9 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-2 text-sm text-gray-400">
                         <span>Exibir</span>
                         <Select
-                          value={pageSize.toString()}
+                          value={filters.pageSize.toString()}
                           onChange={(e) => {
-                            setPageSize(Number(e.target.value))
+                            setFilters({ pageSize: Number(e.target.value) })
                             setCurrentPage(1)
                           }}
                           className="w-20 h-8"
@@ -576,7 +561,7 @@ export default function TransactionsPage() {
 
                     {/* Pagination info */}
                     <div className="mt-4 text-center text-sm text-gray-400">
-                      Exibindo {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, paginatedData.pagination.total)} de {paginatedData.pagination.total} transações
+                      Exibindo {((currentPage - 1) * filters.pageSize) + 1}-{Math.min(currentPage * filters.pageSize, paginatedData.pagination.total)} de {paginatedData.pagination.total} transações
                     </div>
                   </div>
                 )}
@@ -591,7 +576,7 @@ export default function TransactionsPage() {
                 </p>
                 {hasActiveFilters && (
                   <Button
-                    onClick={clearFilters}
+                    onClick={resetFilters}
                   >
                     Limpar Filtros
                   </Button>
