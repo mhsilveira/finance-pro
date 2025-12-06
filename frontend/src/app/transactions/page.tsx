@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { AddTransactionModal } from '@/components/AddTransactionModal'
+import { EditTransactionModal } from '@/components/EditTransactionModal'
 import { TransactionTable } from '@/components/TransactionTable'
 import { DevTools } from '@/components/DevTools'
 import type { Transaction } from '@/types/transaction'
@@ -16,6 +17,10 @@ import { usePaginatedTransactions, useAllTransactions, useDeleteTransaction, use
 export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  // Edit modal state
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
@@ -54,6 +59,11 @@ export default function TransactionsPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao excluir transação')
     }
+  }
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction)
+    setShowEditModal(true)
   }
 
   const handleExport = () => {
@@ -467,6 +477,7 @@ export default function TransactionsPage() {
                 <TransactionTable
                   transactions={displayTransactions}
                   onDelete={handleDelete}
+                  onEdit={handleEdit}
                 />
 
                 {/* Pagination - only show when no filters are active */}
@@ -593,6 +604,17 @@ export default function TransactionsPage() {
 
       {/* Dev Tools - Botão flutuante */}
       <DevTools userId={userId} onUpdate={refetchTransactions} />
+
+      {/* Edit Transaction Modal */}
+      {editingTransaction && (
+        <EditTransactionModal
+          transaction={editingTransaction}
+          userId={userId}
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          onSuccess={refetchTransactions}
+        />
+      )}
     </div>
   )
 }

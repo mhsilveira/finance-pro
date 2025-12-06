@@ -3,14 +3,15 @@
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Transaction } from '@/types/transaction'
-import { TrashIcon } from '@radix-ui/react-icons'
+import { TrashIcon, Pencil1Icon } from '@radix-ui/react-icons'
 
 interface TransactionTableProps {
   transactions: Transaction[]
   onDelete?: (id: string) => void
+  onEdit?: (transaction: Transaction) => void
 }
 
-export function TransactionTable({ transactions, onDelete }: TransactionTableProps) {
+export function TransactionTable({ transactions, onDelete, onEdit }: TransactionTableProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -134,15 +135,26 @@ export function TransactionTable({ transactions, onDelete }: TransactionTablePro
                   {formatDate(transaction.date)}
                 </td>
                 <td className="px-6 py-4 text-center">
-                  {onDelete && (
-                    <button
-                      onClick={() => onDelete(transaction.id)}
-                      className="text-gray-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
-                      title="Excluir transação"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center justify-center gap-2">
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(transaction)}
+                        className="text-gray-500 hover:text-yellow-400 transition-colors p-2 rounded-lg hover:bg-yellow-500/10"
+                        title="Editar transação"
+                      >
+                        <Pencil1Icon className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(transaction.id)}
+                        className="text-gray-500 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
+                        title="Excluir transação"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

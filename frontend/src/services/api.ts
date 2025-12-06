@@ -77,6 +77,26 @@ export async function createTransaction (
   return res.json()
 }
 
+export async function updateTransaction (
+  id: string,
+  payload: Partial<CreateTransactionPayload>
+): Promise<Transaction> {
+  const base = getBaseUrl()
+
+  const res = await fetch(`${base}/transactions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Erro ${res.status}: ${text || res.statusText}`)
+  }
+
+  return res.json()
+}
+
 export async function deleteTransaction (id: string): Promise<void> {
   const base = getBaseUrl()
 

@@ -3,6 +3,7 @@ import {
   getTransactions,
   getAllTransactions,
   createTransaction,
+  updateTransaction,
   deleteTransaction,
   type PaginatedResponse,
   type CreateTransactionPayload,
@@ -50,6 +51,25 @@ export function useCreateTransaction() {
   return useMutation({
     mutationFn: (payload: CreateTransactionPayload) =>
       createTransaction(payload),
+    onSuccess: (_, variables) => {
+      // Invalidate both paginated and all transactions
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.allByUser(variables.userId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.lists(),
+      })
+    },
+  })
+}
+
+// Hook for updating transactions
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, userId, payload }: { id: string; userId: string; payload: Partial<CreateTransactionPayload> }) =>
+      updateTransaction(id, payload),
     onSuccess: (_, variables) => {
       // Invalidate both paginated and all transactions
       queryClient.invalidateQueries({
