@@ -72,15 +72,13 @@ export function parseCSV(csvText: string): CreateTransactionPayload[] {
 
 	// Parse header
 	const headerLine = lines[0];
-	const headers = parseCSVLine(headerLine);
+	const headers = parseCSVLine(headerLine).map(h => h.toLowerCase());
 
-	// Validate required columns
-	const requiredColumns = ['Descrição', 'Valor', 'Tipo', 'Data', 'Categoria', 'Origem'];
-	const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
-
-	if (missingColumns.length > 0) {
-		throw new Error(`Colunas obrigatórias ausentes: ${missingColumns.join(', ')}`);
-	}
+	// Detect format: simplified (3 fields) or complete (6+ fields)
+	const isSimplifiedFormat = headers.length === 3 &&
+		(headers.includes('data') || headers.includes('date')) &&
+		(headers.includes('lançamento') || headers.includes('lancamento') || headers.includes('descrição') || headers.includes('descricao') || headers.includes('description')) &&
+		(headers.includes('valor') || headers.includes('value') || headers.includes('amount'));
 
 	// Parse data rows
 	const transactions: CreateTransactionPayload[] = [];
@@ -90,37 +88,80 @@ export function parseCSV(csvText: string): CreateTransactionPayload[] {
 		if (!line) continue; // Skip empty lines
 
 		const values = parseCSVLine(line);
-		const row: Record<string, string> = {};
 
-		headers.forEach((header, index) => {
-			row[header] = values[index] || '';
-		});
+		if (isSimplifiedFormat) {
+			// Simplified format: data, lançamento, valor
+			// All transactions are EXPENSES from CREDIT_CARD by default
+			// User will edit later to categorize
+			try {
+				const dateValue = values[0] || new Date().toISOString().split('T')[0];
+				const description = values[1] || `Transação ${i}`;
+				const amountStr = values[2] || '0';
 
-		// Validate and create transaction payload
-		try {
-			const type = row['Tipo']?.toLowerCase();
-			if (type !== 'income' && type !== 'expense') {
-				throw new Error(`Tipo inválido na linha ${i + 1}: ${row['Tipo']}`);
+				// Parse amount (handle both comma and dot as decimal separator)
+				const amount = Math.abs(parseFloat(amountStr.replace(',', '.'))) || 0;
+
+				transactions.push({
+					userId: 'blanchimaah',
+					description: description.trim(),
+					amount: amount.toString(),
+					type: 'expense', // Default to expense (credit card bill)
+					category: 'A Categorizar', // User will categorize later
+					origin: 'CREDIT_CARD', // Default to credit card
+					date: dateValue,
+					card: undefined,
+				});
+			} catch (error) {
+				console.error(`Erro ao processar linha ${i + 1}:`, error);
+				throw new Error(`Erro na linha ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
 			}
-
-			const origin = row['Origem']?.toUpperCase();
-			if (origin !== 'CREDIT_CARD' && origin !== 'CASH') {
-				throw new Error(`Origem inválida na linha ${i + 1}: ${row['Origem']}`);
-			}
-
-			transactions.push({
-				userId: 'blanchimaah', // Default user
-				description: row['Descrição'] || `Transação ${i}`,
-				amount: parseFloat(row['Valor'].replace(',', '.')) || 0,
-				type: type as 'income' | 'expense',
-				category: row['Categoria'] || 'Outros',
-				origin: origin as 'CREDIT_CARD' | 'CASH',
-				date: row['Data'] || new Date().toISOString(),
-				card: row['Cartão'] || undefined,
+		} else {
+			// Complete format: validate all required columns
+			const row: Record<string, string> = {};
+			headers.forEach((header, index) => {
+				row[header] = values[index] || '';
 			});
-		} catch (error) {
-			console.error(`Erro ao processar linha ${i + 1}:`, error);
-			throw new Error(`Erro na linha ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+
+			// Map common header variations
+			const description = row['descrição'] || row['descricao'] || row['description'] || row['lançamento'] || row['lancamento'];
+			const valor = row['valor'] || row['value'] || row['amount'];
+			const tipo = row['tipo'] || row['type'];
+			const categoria = row['categoria'] || row['category'];
+			const origem = row['origem'] || row['origin'];
+			const data = row['data'] || row['date'];
+			const cartao = row['cartão'] || row['cartao'] || row['card'];
+
+			// Validate required fields
+			if (!description || !valor || !tipo || !categoria || !origem || !data) {
+				throw new Error(`Dados incompletos na linha ${i + 1}`);
+			}
+
+			// Validate and create transaction payload
+			try {
+				const type = tipo.toLowerCase();
+				if (type !== 'income' && type !== 'expense') {
+					throw new Error(`Tipo inválido na linha ${i + 1}: ${tipo}`);
+				}
+
+				const origin = origem.toUpperCase();
+				if (origin !== 'CREDIT_CARD' && origin !== 'CASH') {
+					throw new Error(`Origem inválida na linha ${i + 1}: ${origem}`);
+				}
+
+				transactions.push({
+					userId: 'blanchimaah',
+					description: description || `Transação ${i}`,
+					amount: parseFloat(valor.replace(',', '.')) || 0,
+					type: type as 'income' | 'expense',
+					category: categoria || 'Outros',
+					origin: origin as 'CREDIT_CARD' | 'CASH',
+					date: data || new Date().toISOString(),
+					card: cartao || undefined,
+				});
+			} catch (error) {
+				console.error(`Erro ao processar linha ${i + 1}:`, error);
+				throw new Error(`Erro na linha ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+			}
 		}
 	}
 
@@ -156,8 +197,14 @@ function parseCSVLine(line: string): string[] {
 }
 
 export function downloadCSVTemplate(): void {
-	const headers = ['Data', 'Descrição', 'Valor', 'Tipo', 'Categoria', 'Origem', 'Cartão'];
-	const exampleRow = [
+	// Simplified template (3 fields - for credit card statements)
+	const simplifiedHeaders = ['data', 'lançamento', 'valor'];
+	const simplifiedExample1 = ['2025-11-12', 'MP *NOVAPOINT', '31'];
+	const simplifiedExample2 = ['2025-11-11', 'UBER* TRIP', '50.71'];
+
+	// Complete template (all fields)
+	const completeHeaders = ['Data', 'Descrição', 'Valor', 'Tipo', 'Categoria', 'Origem', 'Cartão'];
+	const completeExample = [
 		new Date().toISOString().split('T')[0],
 		'Exemplo de transação',
 		'100.00',
@@ -167,7 +214,17 @@ export function downloadCSVTemplate(): void {
 		'',
 	];
 
-	const csvContent = [headers.join(','), exampleRow.join(',')].join('\n');
+	// Create content with both templates separated by blank lines
+	const csvContent = [
+		'# FORMATO SIMPLIFICADO (Fatura de Cartão)',
+		simplifiedHeaders.join(','),
+		simplifiedExample1.join(','),
+		simplifiedExample2.join(','),
+		'',
+		'# FORMATO COMPLETO (Importação Manual)',
+		completeHeaders.join(','),
+		completeExample.join(','),
+	].join('\n');
 
 	const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 	const link = document.createElement('a');
