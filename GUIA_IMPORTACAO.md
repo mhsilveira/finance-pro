@@ -18,7 +18,8 @@ data,lançamento,valor
 1. **Baixe a fatura do seu banco** (geralmente em formato CSV)
 2. **Verifique se tem os 3 campos**: data, lançamento (ou descrição), valor
 3. **Na página de Transações**, clique em "Importar CSV"
-4. **Selecione o arquivo** da fatura
+4. **Digite o nome do cartão** quando solicitado (ex: `ITAU`, `NUBANK`)
+5. **Selecione o arquivo** da fatura
 
 ### O que acontece na importação?
 
@@ -26,6 +27,7 @@ Todas as transações são importadas com valores padrão:
 - **Tipo**: `expense` (despesa)
 - **Origem**: `CREDIT_CARD` (cartão de crédito)
 - **Categoria**: `A Categorizar`
+- **Cartão**: O nome que você digitou (ex: `ITAU`)
 
 ### Depois da Importação
 
@@ -56,11 +58,24 @@ Data,Descrição,Valor,Tipo,Categoria,Origem,Cartão
 
 Veja o arquivo `fatura_teste.csv` na raiz do projeto para um exemplo com dados reais de fatura de cartão.
 
+### Filtros Disponíveis
+
+Após importar, você pode usar os filtros para organizar suas transações:
+
+- **Buscar**: Pesquisar por descrição
+- **Tipo**: Receitas ou Despesas
+- **Categoria**: Filtrar por categoria específica ou "A Categorizar"
+- **Origem**: Cartão de Crédito ou Dinheiro
+- **Cartão**: Filtrar por cartão específico (ITAU, NUBANK, etc)
+- **Período**: Filtrar por mês/ano (ex: 2025-11)
+
 ### Dicas
 
 - ✅ A vírgula pode ser usada como separador decimal (31,50 ou 31.50)
 - ✅ O sistema detecta automaticamente qual formato você está usando
-- ✅ Use os filtros para visualizar apenas transações "A Categorizar"
+- ✅ Use o filtro de Categoria = "A Categorizar" para ver transações pendentes
+- ✅ Use o filtro de Cartão para ver apenas transações de um cartão específico
+- ✅ Use o filtro de Período (mês/ano) em vez de dia específico
 - ✅ Os filtros são salvos automaticamente (localStorage)
 - ✅ Você pode exportar suas transações a qualquer momento
 
@@ -74,9 +89,13 @@ O sistema aceita variações de nomes nos headers:
 
 ## Workflow Recomendado
 
-1. 📥 Baixar fatura do banco
-2. 📤 Importar CSV (3 campos)
-3. ✏️ Editar transações em lote
-4. 🏷️ Categorizar conforme necessário
-5. 📊 Ver estatísticas atualizadas no Dashboard
-6. 💾 Exportar backup se desejar
+1. 📥 Baixar fatura do banco (formato CSV com 3 campos)
+2. 📤 Importar CSV na página de Transações
+3. 💳 Informar nome do cartão (ex: ITAU, NUBANK)
+4. 🔍 Filtrar por Categoria = "A Categorizar"
+5. ✏️ Editar cada transação e atribuir categoria correta
+6. 🏷️ Criar novas categorias conforme necessário
+7. 🔎 Usar filtro de Cartão para ver gastos por cartão
+8. 📅 Usar filtro de Período (mês/ano) para análises mensais
+9. 📊 Ver estatísticas atualizadas no Dashboard
+10. 💾 Exportar backup se desejar
