@@ -30,6 +30,9 @@ export default function RecurringPage() {
 		e.preventDefault();
 		const formData = new FormData(e.currentTarget);
 
+		const cardValue = formData.get("card") as string;
+		const endDateValue = formData.get("endDate") as string;
+
 		const payload = {
 			userId,
 			description: formData.get("description") as string,
@@ -37,10 +40,10 @@ export default function RecurringPage() {
 			type: formData.get("type") as "income" | "expense",
 			origin: formData.get("origin") as "CREDIT_CARD" | "CASH",
 			category: formData.get("category") as string,
-			card: formData.get("card") as string | undefined,
+			card: cardValue && cardValue.trim() !== "" ? cardValue.trim() : undefined,
 			frequency: formData.get("frequency") as RecurringFrequency,
 			startDate: formData.get("startDate") as string,
-			endDate: formData.get("endDate") as string | undefined,
+			endDate: endDateValue && endDateValue.trim() !== "" ? endDateValue.trim() : undefined,
 		};
 
 		createRecurringTransaction(payload);
@@ -72,8 +75,8 @@ export default function RecurringPage() {
 				type: rec.type,
 				origin: rec.origin,
 				category: rec.category,
-				card: rec.card,
-				date: new Date().toISOString(),
+				card: rec.card && rec.card.trim() !== "" ? rec.card : undefined,
+				date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
 			});
 
 			alert("Transação gerada com sucesso!");
