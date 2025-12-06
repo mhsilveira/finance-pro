@@ -268,7 +268,7 @@ export default function TransactionsPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
@@ -348,28 +348,32 @@ export default function TransactionsPage() {
                 </Select>
               </div>
 
-              {/* Month Range */}
+              {/* Month Range - De */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Período (Mês/Ano)
+                  Período De
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input
-                    type="month"
-                    value={filters.monthFrom}
-                    onChange={(e) => setFilters({ monthFrom: e.target.value })}
-                    placeholder="De"
-                    className="flex-1 min-w-0"
-                    title="Mês inicial"
-                  />
-                  <Input
-                    type="month"
-                    value={filters.monthTo}
-                    onChange={(e) => setFilters({ monthTo: e.target.value })}
-                    className="flex-1"
-                    title="Mês final"
-                  />
-                </div>
+                <Input
+                  type="month"
+                  value={filters.monthFrom}
+                  onChange={(e) => setFilters({ monthFrom: e.target.value })}
+                  placeholder="Mês inicial"
+                  title="Mês inicial"
+                />
+              </div>
+
+              {/* Month Range - Até */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+                  Período Até
+                </label>
+                <Input
+                  type="month"
+                  value={filters.monthTo}
+                  onChange={(e) => setFilters({ monthTo: e.target.value })}
+                  placeholder="Mês final"
+                  title="Mês final"
+                />
               </div>
             </div>
 
