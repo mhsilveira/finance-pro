@@ -5,8 +5,9 @@ export interface TransactionFilters {
   typeFilter: 'all' | 'income' | 'expense'
   categoryFilter: string
   originFilter: 'all' | 'CREDIT_CARD' | 'CASH'
-  dateFrom: string
-  dateTo: string
+  cardFilter: string
+  monthFrom: string // YYYY-MM
+  monthTo: string // YYYY-MM
   pageSize: number
 }
 
@@ -15,8 +16,9 @@ const DEFAULT_FILTERS: TransactionFilters = {
   typeFilter: 'all',
   categoryFilter: 'all',
   originFilter: 'all',
-  dateFrom: '',
-  dateTo: '',
+  cardFilter: 'all',
+  monthFrom: '',
+  monthTo: '',
   pageSize: 10
 }
 
@@ -66,8 +68,9 @@ export function usePersistedFilters() {
     filters.typeFilter !== 'all' ||
     filters.categoryFilter !== 'all' ||
     filters.originFilter !== 'all' ||
-    filters.dateFrom !== '' ||
-    filters.dateTo !== ''
+    filters.cardFilter !== 'all' ||
+    filters.monthFrom !== '' ||
+    filters.monthTo !== ''
 
   return {
     filters,

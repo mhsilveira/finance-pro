@@ -77,7 +77,19 @@ export default function TransactionsPage() {
 
     try {
       const text = await file.text()
-      const newTransactions = parseCSV(text)
+
+      // Ask user for card name before importing
+      const cardName = prompt('Digite o nome do cartão desta fatura (ex: ITAU, NUBANK):')
+      if (!cardName) {
+        alert('Importação cancelada: nome do cartão não informado')
+        setImporting(false)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+
+      const newTransactions = parseCSV(text, cardName.trim().toUpperCase())
 
       let successCount = 0
       let errorCount = 0
@@ -129,19 +141,26 @@ export default function TransactionsPage() {
       return false
     }
 
-    // Date range filter
-    if (filters.dateFrom && new Date(t.date) < new Date(filters.dateFrom)) {
+    // Card filter
+    if (filters.cardFilter !== 'all' && t.card !== filters.cardFilter) {
       return false
     }
-    if (filters.dateTo && new Date(t.date) > new Date(filters.dateTo)) {
+
+    // Month range filter (YYYY-MM)
+    const transactionMonth = t.monthYear || t.date.substring(0, 7)
+    if (filters.monthFrom && transactionMonth < filters.monthFrom) {
+      return false
+    }
+    if (filters.monthTo && transactionMonth > filters.monthTo) {
       return false
     }
 
     return true
   })
 
-  // Get unique categories for filter dropdown
+  // Get unique categories and cards for filter dropdowns
   const uniqueCategories = Array.from(new Set(allTransactions.map(t => t.category).filter(Boolean)))
+  const uniqueCards = Array.from(new Set(allTransactions.map(t => t.card).filter(Boolean)))
 
   // Calcular estatísticas (using filtered transactions)
   const income = filteredTransactions
@@ -249,7 +268,7 @@ export default function TransactionsPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
@@ -311,26 +330,44 @@ export default function TransactionsPage() {
                 </Select>
               </div>
 
-              {/* Date Range */}
-              <div className="md:col-span-2 lg:col-span-3 xl:col-span-1">
+              {/* Card Filter */}
+              <div>
                 <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Período
+                  Cartão
+                </label>
+                <Select
+                  value={filters.cardFilter}
+                  onChange={(e) => setFilters({ cardFilter: e.target.value })}
+                >
+                  <option value="all">Todos</option>
+                  {uniqueCards.map((card) => (
+                    <option key={card} value={card}>
+                      {card}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Month Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+                  Período (Mês/Ano)
                 </label>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) => setFilters({ dateFrom: e.target.value })}
+                    type="month"
+                    value={filters.monthFrom}
+                    onChange={(e) => setFilters({ monthFrom: e.target.value })}
                     placeholder="De"
                     className="flex-1 min-w-0"
-                    title="Data inicial"
+                    title="Mês inicial"
                   />
                   <Input
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) => setFilters({ dateTo: e.target.value })}
+                    type="month"
+                    value={filters.monthTo}
+                    onChange={(e) => setFilters({ monthTo: e.target.value })}
                     className="flex-1"
-                    title="Data final"
+                    title="Mês final"
                   />
                 </div>
               </div>

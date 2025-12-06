@@ -63,7 +63,7 @@ export function exportTransactionsToCSV(transactions: Transaction[]): void {
 	document.body.removeChild(link);
 }
 
-export function parseCSV(csvText: string): CreateTransactionPayload[] {
+export function parseCSV(csvText: string, cardName?: string): CreateTransactionPayload[] {
 	const lines = csvText.trim().split('\n');
 
 	if (lines.length < 2) {
@@ -109,7 +109,7 @@ export function parseCSV(csvText: string): CreateTransactionPayload[] {
 					category: 'A Categorizar', // User will categorize later
 					origin: 'CREDIT_CARD', // Default to credit card
 					date: dateValue,
-					card: undefined,
+					card: cardName || undefined, // Use provided card name or undefined
 				});
 			} catch (error) {
 				console.error(`Erro ao processar linha ${i + 1}:`, error);
