@@ -52,6 +52,47 @@ export default function DashboardPage() {
 
 	const balance = income - expense;
 
+	// Calculate savings rate
+	const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+
+	// Get current month transactions
+	const now = new Date();
+	const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+	const currentMonthTransactions = transactions.filter((t) => {
+		const tMonth = t.monthYear || t.date.substring(0, 7);
+		return tMonth === currentMonth;
+	});
+
+	const currentMonthIncome = currentMonthTransactions
+		.filter((t) => t.type === "income")
+		.reduce((sum, t) => sum + t.amount, 0);
+
+	const currentMonthExpense = currentMonthTransactions
+		.filter((t) => t.type === "expense")
+		.reduce((sum, t) => sum + t.amount, 0);
+
+	// Get previous month for comparison
+	const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+	const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+	const prevMonthTransactions = transactions.filter((t) => {
+		const tMonth = t.monthYear || t.date.substring(0, 7);
+		return tMonth === prevMonth;
+	});
+
+	const prevMonthExpense = prevMonthTransactions
+		.filter((t) => t.type === "expense")
+		.reduce((sum, t) => sum + t.amount, 0);
+
+	// Calculate change percentage
+	const expenseChange = prevMonthExpense > 0
+		? ((currentMonthExpense - prevMonthExpense) / prevMonthExpense) * 100
+		: 0;
+
+	// Average daily expense this month
+	const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+	const currentDay = now.getDate();
+	const avgDailyExpense = currentDay > 0 ? currentMonthExpense / currentDay : 0;
+
 	// Get recent transactions (last 5)
 	const recentTransactions = [...transactions]
 		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -251,6 +292,77 @@ export default function DashboardPage() {
 							</div>
 							<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
 								<span className="text-2xl">💰</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				{/* Additional Stats Cards */}
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+					{/* Savings Rate */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-blue-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Taxa de Economia</p>
+								<p className={`text-2xl font-semibold mt-2 tabular-nums ${savingsRate >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+									{savingsRate.toFixed(1)}%
+								</p>
+								<p className="text-xs text-gray-500 mt-1">do total de receitas</p>
+							</div>
+							<div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">🎯</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Current Month Expense */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-purple-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas do Mês</p>
+								<p className="text-2xl font-semibold text-purple-400 mt-2 tabular-nums">
+									{formatCurrency(currentMonthExpense)}
+								</p>
+								{expenseChange !== 0 && (
+									<p className={`text-xs mt-1 ${expenseChange > 0 ? 'text-red-400' : 'text-green-400'}`}>
+										{expenseChange > 0 ? '↑' : '↓'} {Math.abs(expenseChange).toFixed(1)}% vs mês anterior
+									</p>
+								)}
+							</div>
+							<div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">📊</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Average Daily Expense */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-cyan-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Média Diária</p>
+								<p className="text-2xl font-semibold text-cyan-400 mt-2 tabular-nums">
+									{formatCurrency(avgDailyExpense)}
+								</p>
+								<p className="text-xs text-gray-500 mt-1">em {currentDay} dias do mês</p>
+							</div>
+							<div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">📅</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Current Month Balance */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-orange-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Saldo do Mês</p>
+								<p className={`text-2xl font-semibold mt-2 tabular-nums ${(currentMonthIncome - currentMonthExpense) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+									{formatCurrency(currentMonthIncome - currentMonthExpense)}
+								</p>
+								<p className="text-xs text-gray-500 mt-1">receitas menos despesas</p>
+							</div>
+							<div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">💵</span>
 							</div>
 						</div>
 					</div>
