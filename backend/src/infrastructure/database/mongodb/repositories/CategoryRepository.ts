@@ -117,6 +117,13 @@ export class CategoryRepository {
         type: 'both',
         icon: '📦',
         color: '#64748b'
+      },
+      {
+        key: 'TO_CATEGORIZE',
+        name: 'A Categorizar',
+        type: 'expense',
+        icon: '🏷️',
+        color: '#9ca3af'
       }
     ]
 

@@ -5,5 +5,6 @@ export enum Categories {
   'TRANSPORT' = 'Transporte',
   'SUBSCRIPTIONS' = 'Assinaturas',
   'BILLS' = 'Contas',
-  'GENERAL' = 'Gastos gerais'
+  'GENERAL' = 'Gastos gerais',
+  'TO_CATEGORIZE' = 'A Categorizar'
 }
