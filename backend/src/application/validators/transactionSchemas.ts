@@ -36,7 +36,7 @@ export const createTransactionSchema = z
         })
       ),
     origin: originEnum,
-    card: z.string().min(1).optional()
+    card: z.string().min(1).optional().or(z.literal(undefined))
   })
   .superRefine((data, ctx) => {
     if (
@@ -67,7 +67,7 @@ export const updateTransactionSchema = z
       )
       .optional(),
     origin: originEnum.optional(),
-    card: z.string().min(1).optional()
+    card: z.string().min(1).optional().or(z.literal(undefined))
   })
   .superRefine((data, ctx) => {
     if (
