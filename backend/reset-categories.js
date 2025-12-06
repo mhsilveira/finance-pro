@@ -1,36 +1,31 @@
-import { CategoryModel, ICategory } from '../models/CategoryModel'
+require('dotenv').config();
+const mongoose = require('mongoose');
 
-export class CategoryRepository {
-  async findAll(): Promise<ICategory[]> {
-    return await CategoryModel.find().sort({ name: 1 }).lean()
-  }
+const CategorySchema = new mongoose.Schema({
+  key: String,
+  name: String,
+  type: String,
+  icon: String,
+  color: String
+});
 
-  async findByKey(key: string): Promise<ICategory | null> {
-    return await CategoryModel.findOne({ key: key.toUpperCase() }).lean()
-  }
+const Category = mongoose.model('Category', CategorySchema);
 
-  async findByName(name: string): Promise<ICategory | null> {
-    return await CategoryModel.findOne({ name }).lean()
-  }
+async function resetCategories() {
+  try {
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/financial_control';
+    console.log('Conectando ao MongoDB...');
+    await mongoose.connect(mongoUri);
+    console.log('Conectado!');
 
-  async findByType(type: 'income' | 'expense'): Promise<ICategory[]> {
-    return await CategoryModel.find({
-      $or: [{ type }, { type: 'both' }]
-    })
-      .sort({ name: 1 })
-      .lean()
-  }
+    // Deletar todas as categorias
+    console.log('Deletando categorias existentes...');
+    await Category.deleteMany({});
+    console.log('Categorias deletadas!');
 
-  async create(category: Omit<ICategory, '_id'>): Promise<ICategory> {
-    const doc = new CategoryModel(category)
-    return await doc.save()
-  }
-
-  async seedDefaultCategories(): Promise<void> {
-    const count = await CategoryModel.countDocuments()
-    if (count > 0) return // Já tem categorias
-
-    const defaultCategories: Omit<ICategory, '_id'>[] = [
+    // Inserir novas categorias
+    console.log('Inserindo categorias padrão...');
+    const defaultCategories = [
       {
         key: 'INCOME',
         name: 'Salário',
@@ -129,8 +124,25 @@ export class CategoryRepository {
         icon: '🏷️',
         color: '#9ca3af'
       }
-    ]
+    ];
 
-    await CategoryModel.insertMany(defaultCategories)
+    await Category.insertMany(defaultCategories);
+    console.log(`✅ ${defaultCategories.length} categorias inseridas com sucesso!`);
+
+    // Listar categorias
+    const categories = await Category.find({}).sort({ name: 1 });
+    console.log('\nCategorias no banco:');
+    categories.forEach(cat => {
+      console.log(`  ${cat.icon} ${cat.name} (${cat.key}) - ${cat.type}`);
+    });
+
+    await mongoose.connection.close();
+    console.log('\nConexão fechada. Pronto!');
+    process.exit(0);
+  } catch (error) {
+    console.error('Erro:', error);
+    process.exit(1);
   }
 }
+
+resetCategories();

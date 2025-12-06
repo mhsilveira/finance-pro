@@ -31,8 +31,11 @@ export class CreateTransaction {
     category: string
     date: Date
   }): Promise<Transaction> {
-    // Validar se a categoria existe
-    const category = await this.categoryRepo.findByKey(params.category)
+    // Validar se a categoria existe (busca por key ou name)
+    let category = await this.categoryRepo.findByKey(params.category)
+    if (!category) {
+      category = await this.categoryRepo.findByName(params.category)
+    }
     if (!category) {
       throw new Error(`Categoria inválida: ${params.category}`)
     }
