@@ -42,10 +42,20 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       return badRequest('query param "userId" é obrigatório')
     }
 
+    // Pagination parameters
+    const page = parseInt(event.queryStringParameters?.page || '1', 10)
+    const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
+    const skip = (page - 1) * limit
+
     const repo = new TransactionRepository()
+
+    // Get total count
+    const total = await repo.countByUserId(userId)
+
+    // Get paginated transactions
     const useCase = new ListTransactions(repo)
-    const list = await useCase.execute(userId)
-    console.log('Transactions found:', list.length)
+    const list = await useCase.execute(userId, { limit, skip })
+    console.log('Transactions found:', list.length, 'of', total)
 
     const body = list.map(t => {
       const dt = toDateOrNull((t as any).date)
@@ -62,13 +72,24 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
         description: (t as any).description,
         amount: Number((t as any).amount),
         type: (t as any).type,
-        category: (t as any).categoryName,
+        origin: (t as any).origin,
+        card: (t as any).card,
+        category: (t as any).category,
         date: toDateOnly(dt),
         monthYear
       }
     })
 
-    return json(200, list)
+    return json(200, {
+      data: body,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total
+      }
+    })
   } catch (err) {
     return serverError(err)
   }

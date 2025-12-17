@@ -1,0 +1,26 @@
+Data,Descrição,Valor,Tipo,Categoria,Origem,Cartão
+2025-01-15,Supermercado Extra,234.50,expense,Alimentação,CASH,
+2025-01-14,Salário Janeiro,5500.00,income,Salário,CASH,
+2025-01-13,Restaurante Japonês,189.90,expense,Alimentação,CREDIT_CARD,Nubank
+2025-01-12,Uber para trabalho,25.50,expense,Transporte,CREDIT_CARD,Nubank
+2025-01-11,Netflix,55.90,expense,Entretenimento,CREDIT_CARD,Itaú
+2025-01-10,Conta de luz,145.32,expense,Contas,CASH,
+2025-01-09,Farmácia Drogasil,87.40,expense,Saúde,CREDIT_CARD,Nubank
+2025-01-08,Freelance projeto,1200.00,income,Freelance,CASH,
+2025-01-07,Gasolina,280.00,expense,Transporte,CREDIT_CARD,Nubank
+2025-01-06,Mercado São João,156.78,expense,Alimentação,CASH,
+2025-01-05,Academia mensal,120.00,expense,Saúde,CASH,
+2025-01-04,Spotify,21.90,expense,Entretenimento,CREDIT_CARD,Itaú
+2025-01-03,Aluguel,1500.00,expense,Moradia,CASH,
+2025-01-02,Café da manhã,45.00,expense,Alimentação,CREDIT_CARD,Nubank
+2025-01-01,Bônus fim de ano,800.00,income,Bônus,CASH,
+2024-12-28,Shopping Center,345.67,expense,Compras,CREDIT_CARD,Nubank
+2024-12-27,Dentista consulta,350.00,expense,Saúde,CASH,
+2024-12-26,Presente Natal,250.00,expense,Presentes,CREDIT_CARD,Itaú
+2024-12-25,Ceia de Natal,420.00,expense,Alimentação,CASH,
+2024-12-24,Combustível viagem,180.00,expense,Transporte,CREDIT_CARD,Nubank
+2024-12-23,Internet fibra,99.90,expense,Contas,CASH,
+2024-12-22,Padaria,78.50,expense,Alimentação,CASH,
+2024-12-21,Cinema Ingresso,80.00,expense,Entretenimento,CREDIT_CARD,Nubank
+2024-12-20,Depósito extra,300.00,income,Outros,CASH,
+2024-12-19,Mercado Municipal,198.45,expense,Alimentação,CASH,

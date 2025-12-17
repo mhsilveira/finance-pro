@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
 import Link from "next/link";
 import {
 	Chart as ChartJS,
@@ -17,42 +14,15 @@ import {
 	Legend,
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	PointElement,
-	LineElement,
-	BarElement,
-	ArcElement,
-	Title,
-	Tooltip,
-	Legend,
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
 export default function DashboardPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
-
 	const userId = "blanchimaah";
 
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
-	}, []);
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	const formatCurrency = (value: number) => {
 		return new Intl.NumberFormat("pt-BR", {
@@ -62,15 +32,50 @@ export default function DashboardPage() {
 	};
 
 	// Calculate stats
-	const income = transactions
+	const income = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+
+	const expense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+
+	const balance = income - expense;
+
+	// Calculate savings rate
+	const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
+
+	// Get current month transactions
+	const now = new Date();
+	const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+	const currentMonthTransactions = transactions.filter((t) => {
+		const tMonth = t.monthYear || t.date.substring(0, 7);
+		return tMonth === currentMonth;
+	});
+
+	const currentMonthIncome = currentMonthTransactions
 		.filter((t) => t.type === "income")
 		.reduce((sum, t) => sum + t.amount, 0);
 
-	const expense = transactions
+	const currentMonthExpense = currentMonthTransactions
 		.filter((t) => t.type === "expense")
 		.reduce((sum, t) => sum + t.amount, 0);
 
-	const balance = income - expense;
+	// Get previous month for comparison
+	const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+	const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+	const prevMonthTransactions = transactions.filter((t) => {
+		const tMonth = t.monthYear || t.date.substring(0, 7);
+		return tMonth === prevMonth;
+	});
+
+	const prevMonthExpense = prevMonthTransactions
+		.filter((t) => t.type === "expense")
+		.reduce((sum, t) => sum + t.amount, 0);
+
+	// Calculate change percentage
+	const expenseChange = prevMonthExpense > 0 ? ((currentMonthExpense - prevMonthExpense) / prevMonthExpense) * 100 : 0;
+
+	// Average daily expense this month
+	const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+	const currentDay = now.getDate();
+	const avgDailyExpense = currentDay > 0 ? currentMonthExpense / currentDay : 0;
 
 	// Get recent transactions (last 5)
 	const recentTransactions = [...transactions]
@@ -79,10 +84,7 @@ export default function DashboardPage() {
 
 	// Calculate monthly trends (last 6 months)
 	const getMonthlyData = () => {
-		const monthlyMap = new Map<
-			string,
-			{ income: number; expense: number }
-		>();
+		const monthlyMap = new Map<string, { income: number; expense: number }>();
 
 		transactions.forEach((t) => {
 			const monthYear = t.monthYear || t.date.substring(0, 7);
@@ -124,9 +126,7 @@ export default function DashboardPage() {
 				categoryMap.set(category, (categoryMap.get(category) || 0) + t.amount);
 			});
 
-		const sorted = Array.from(categoryMap.entries()).sort(
-			(a, b) => b[1] - a[1],
-		);
+		const sorted = Array.from(categoryMap.entries()).sort((a, b) => b[1] - a[1]);
 
 		return {
 			labels: sorted.map(([cat]) => cat),
@@ -190,9 +190,7 @@ export default function DashboardPage() {
 		return (
 			<div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
 				<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md">
-					<h3 className="text-xl font-semibold text-red-400 mb-2">
-						Erro ao carregar dados
-					</h3>
+					<h3 className="text-xl font-semibold text-red-400 mb-2">Erro ao carregar dados</h3>
 					<p className="text-red-300">{error}</p>
 				</div>
 			</div>
@@ -204,12 +202,8 @@ export default function DashboardPage() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-gray-100">
-						Dashboard
-					</h1>
-					<p className="mt-2 text-gray-400">
-						Visão geral das suas finanças
-					</p>
+					<h1 className="text-4xl font-bold text-gray-100">Dashboard</h1>
+					<p className="mt-2 text-gray-400">Visão geral das suas finanças</p>
 				</div>
 
 				{/* Stats Cards */}
@@ -218,9 +212,7 @@ export default function DashboardPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
-								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-									{transactions.length}
-								</p>
+								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{transactions.length}</p>
 								<p className="text-xs text-gray-500 mt-1">transações</p>
 							</div>
 							<div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
@@ -233,9 +225,7 @@ export default function DashboardPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
-								<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
-									{formatCurrency(income)}
-								</p>
+								<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">{formatCurrency(income)}</p>
 								<p className="text-xs text-gray-500 mt-1">no período</p>
 							</div>
 							<div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
@@ -248,9 +238,7 @@ export default function DashboardPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
-								<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
-									{formatCurrency(expense)}
-								</p>
+								<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">{formatCurrency(expense)}</p>
 								<p className="text-xs text-gray-500 mt-1">no período</p>
 							</div>
 							<div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
@@ -264,9 +252,7 @@ export default function DashboardPage() {
 						<div className="relative flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
-								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-									{formatCurrency(balance)}
-								</p>
+								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{formatCurrency(balance)}</p>
 								<p className="text-xs text-gray-400 mt-1">disponível</p>
 							</div>
 							<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
@@ -276,13 +262,86 @@ export default function DashboardPage() {
 					</div>
 				</div>
 
+				{/* Additional Stats Cards */}
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+					{/* Savings Rate */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-blue-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Taxa de Economia</p>
+								<p
+									className={`text-2xl font-semibold mt-2 tabular-nums ${savingsRate >= 0 ? "text-blue-400" : "text-red-400"}`}
+								>
+									{savingsRate.toFixed(1)}%
+								</p>
+								<p className="text-xs text-gray-500 mt-1">do total de receitas</p>
+							</div>
+							<div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">🎯</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Current Month Expense */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-purple-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas do Mês</p>
+								<p className="text-2xl font-semibold text-purple-400 mt-2 tabular-nums">
+									{formatCurrency(currentMonthExpense)}
+								</p>
+								{expenseChange !== 0 && (
+									<p className={`text-xs mt-1 ${expenseChange > 0 ? "text-red-400" : "text-green-400"}`}>
+										{expenseChange > 0 ? "↑" : "↓"} {Math.abs(expenseChange).toFixed(1)}% vs mês anterior
+									</p>
+								)}
+							</div>
+							<div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">📊</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Average Daily Expense */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-cyan-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Média Diária</p>
+								<p className="text-2xl font-semibold text-cyan-400 mt-2 tabular-nums">
+									{formatCurrency(avgDailyExpense)}
+								</p>
+								<p className="text-xs text-gray-500 mt-1">em {currentDay} dias do mês</p>
+							</div>
+							<div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">📅</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Current Month Balance */}
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-orange-500/30 transition-all">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Saldo do Mês</p>
+								<p
+									className={`text-2xl font-semibold mt-2 tabular-nums ${(currentMonthIncome - currentMonthExpense) >= 0 ? "text-green-400" : "text-red-400"}`}
+								>
+									{formatCurrency(currentMonthIncome - currentMonthExpense)}
+								</p>
+								<p className="text-xs text-gray-500 mt-1">receitas menos despesas</p>
+							</div>
+							<div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
+								<span className="text-2xl">💵</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				{/* Charts */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 					{/* Monthly Trends */}
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
-							Tendência Mensal
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Tendência Mensal</h2>
 						{monthlyData.labels.length > 0 ? (
 							<Line
 								data={lineChartData}
@@ -292,38 +351,34 @@ export default function DashboardPage() {
 										legend: {
 											position: "bottom",
 											labels: {
-												color: '#9CA3AF',
+												color: "#9CA3AF",
 												font: {
-													size: 12
-												}
-											}
+													size: 12,
+												},
+											},
 										},
 									},
 									scales: {
 										y: {
 											beginAtZero: true,
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
 										},
 										x: {
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
-										}
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
+										},
 									},
 								}}
 							/>
 						) : (
-							<p className="text-gray-400 text-center py-8">
-								Sem dados suficientes
-							</p>
+							<p className="text-gray-400 text-center py-8">Sem dados suficientes</p>
 						)}
 					</div>
 
 					{/* Category Breakdown */}
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
-							Despesas por Categoria
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Despesas por Categoria</h2>
 						{categoryData.labels.length > 0 ? (
 							<div className="flex justify-center">
 								<div className="w-64 h-64">
@@ -336,11 +391,11 @@ export default function DashboardPage() {
 												legend: {
 													position: "bottom",
 													labels: {
-														color: '#9CA3AF',
+														color: "#9CA3AF",
 														font: {
-															size: 11
-														}
-													}
+															size: 11,
+														},
+													},
 												},
 											},
 										}}
@@ -348,9 +403,7 @@ export default function DashboardPage() {
 								</div>
 							</div>
 						) : (
-							<p className="text-gray-400 text-center py-8">
-								Sem despesas registradas
-							</p>
+							<p className="text-gray-400 text-center py-8">Sem despesas registradas</p>
 						)}
 					</div>
 				</div>
@@ -358,9 +411,7 @@ export default function DashboardPage() {
 				{/* Recent Transactions */}
 				<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">
-							Transações Recentes
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">Transações Recentes</h2>
 						<Link
 							href="/transactions"
 							className="text-sm font-medium text-yellow-400 hover:text-yellow-300 transition-colors"
@@ -379,31 +430,20 @@ export default function DashboardPage() {
 									<div className="flex items-center gap-3">
 										<div
 											className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-												t.type === "income"
-													? "bg-green-500/10"
-													: "bg-red-500/10"
+												t.type === "income" ? "bg-green-500/10" : "bg-red-500/10"
 											}`}
 										>
-											<span className="text-lg">
-												{t.type === "income" ? "📈" : "📉"}
-											</span>
+											<span className="text-lg">{t.type === "income" ? "📈" : "📉"}</span>
 										</div>
 										<div>
-											<p className="font-medium text-gray-100">
-												{t.description}
-											</p>
+											<p className="font-medium text-gray-100">{t.description}</p>
 											<p className="text-sm text-gray-400">
-												{new Date(t.date).toLocaleDateString("pt-BR")} •{" "}
-												{t.category}
+												{new Date(t.date).toLocaleDateString("pt-BR")} • {t.category}
 											</p>
 										</div>
 									</div>
 									<p
-										className={`font-semibold tabular-nums ${
-											t.type === "income"
-												? "text-green-400"
-												: "text-red-400"
-										}`}
+										className={`font-semibold tabular-nums ${t.type === "income" ? "text-green-400" : "text-red-400"}`}
 									>
 										{t.type === "income" ? "+" : "-"}
 										{formatCurrency(t.amount)}
@@ -413,9 +453,7 @@ export default function DashboardPage() {
 						</div>
 					) : (
 						<div className="text-center py-8">
-							<p className="text-gray-400 mb-4">
-								Nenhuma transação registrada
-							</p>
+							<p className="text-gray-400 mb-4">Nenhuma transação registrada</p>
 							<Link
 								href="/transactions"
 								className="inline-block px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"

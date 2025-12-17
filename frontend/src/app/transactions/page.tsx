@@ -1,508 +1,755 @@
-'use client'
+"use client";
 
-import { useEffect, useState, useRef } from 'react'
-import { AddTransactionModal } from '@/components/AddTransactionModal'
-import { TransactionTable } from '@/components/TransactionTable'
-import { DevTools } from '@/components/DevTools'
-import type { Transaction } from '@/types/transaction'
-import { deleteTransaction, getTransactions, createTransaction } from '@/services/api'
-import { exportTransactionsToCSV, parseCSV, downloadCSVTemplate } from '@/services/csv'
+import { useState } from "react";
+import { AddTransactionModal } from "@/components/AddTransactionModal";
+import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { ImportCSVModal, type CSVSource } from "@/components/ImportCSVModal";
+import { TransactionTable } from "@/components/TransactionTable";
+import { DevTools } from "@/components/DevTools";
+import type { Transaction } from "@/types/transaction";
+import { exportTransactionsToCSV, parseCSV } from "@/services/csv";
+import { reprocessCategories } from "@/services/api";
+import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+	PaginationEllipsis,
+} from "@/components/ui/pagination";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import {
+	usePaginatedTransactions,
+	useAllTransactions,
+	useDeleteTransaction,
+	useCreateTransaction,
+} from "@/hooks/useTransactions";
+import { usePersistedFilters } from "@/hooks/usePersistedFilters";
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+	const [currentPage, setCurrentPage] = useState(1);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [originFilter, setOriginFilter] = useState<'all' | 'CREDIT_CARD' | 'CASH'>('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+	// Edit modal state
+	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [showEditModal, setShowEditModal] = useState(false);
 
-  // CSV Import
-  const [importing, setImporting] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+	// Import modal state
+	const [showImportModal, setShowImportModal] = useState(false);
+	const [importing, setImporting] = useState(false);
 
-  const userId = 'blanchimaah'
+	// Reprocess state
+	const [reprocessing, setReprocessing] = useState(false);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true)
-        setError('')
-        const data = await getTransactions(userId)
-        console.log('Transações recebidas:', data) // Debug
-        setTransactions(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
-      } finally {
-        setLoading(false)
-      }
-    }
+	// Persisted filters
+	const { filters, setFilters, resetFilters, hasActiveFilters, isLoaded } = usePersistedFilters();
 
-    fetchTransactions()
-  }, [])
+	const userId = "blanchimaah";
 
-  const refetchTransactions = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      const data = await getTransactions(userId)
-      console.log('Transações recebidas:', data) // Debug
-      setTransactions(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao carregar transações')
-    } finally {
-      setLoading(false)
-    }
-  }
+	// React Query hooks
+	const {
+		data: paginatedData,
+		isLoading,
+		error: queryError,
+		refetch: refetchPaginated,
+	} = usePaginatedTransactions(userId, currentPage, filters.pageSize);
+	const { data: allTransactions = [], refetch: refetchAll } = useAllTransactions(userId);
+	const deleteMutation = useDeleteTransaction();
+	const createMutation = useCreateTransaction();
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta transação?')) {
-      return
-    }
+	const loading = isLoading || !isLoaded;
+	const error = queryError ? (queryError as Error).message : "";
 
-    try {
-      await deleteTransaction(id)
-      setTransactions(prev => prev.filter(t => t.id !== id))
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao excluir transação')
-    }
-  }
+	const refetchTransactions = async () => {
+		await Promise.all([refetchPaginated(), refetchAll()]);
+	};
 
-  const handleExport = () => {
-    exportTransactionsToCSV(filteredTransactions)
-  }
+	const handleDelete = async (id: string) => {
+		if (!confirm("Tem certeza que deseja excluir esta transação?")) {
+			return;
+		}
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click()
-  }
+		try {
+			await deleteMutation.mutateAsync({ id, userId });
+		} catch (err) {
+			alert(err instanceof Error ? err.message : "Erro ao excluir transação");
+		}
+	};
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+	const handleEdit = (transaction: Transaction) => {
+		setEditingTransaction(transaction);
+		setShowEditModal(true);
+	};
 
-    setImporting(true)
+	const handleExport = () => {
+		exportTransactionsToCSV(filteredTransactions);
+	};
 
-    try {
-      const text = await file.text()
-      const newTransactions = parseCSV(text)
+	const handleImportClick = () => {
+		setShowImportModal(true);
+	};
 
-      let successCount = 0
-      let errorCount = 0
+	const handleImport = async (file: File, source: CSVSource) => {
+		setImporting(true);
 
-      for (const transaction of newTransactions) {
-        try {
-          await createTransaction(transaction)
-          successCount++
-        } catch (err) {
-          errorCount++
-          console.error('Erro ao importar transação:', err)
-        }
-      }
+		try {
+			const text = await file.text();
 
-      alert(
-        `Importação concluída!\n${successCount} transações importadas com sucesso.\n${errorCount} erros.`
-      )
+			// Parse CSV using the robust parser with source type
+			const newTransactions = parseCSV(text, source);
 
-      await refetchTransactions()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erro ao importar CSV')
-    } finally {
-      setImporting(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }
+			let successCount = 0;
+			let errorCount = 0;
+			const errors: Array<{ row: number; transaction: any; error: string }> = [];
 
-  // Apply filters
-  const filteredTransactions = transactions.filter((t) => {
-    // Search filter
-    if (searchTerm && !t.description.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false
-    }
+			console.log(`🔄 Starting import of ${newTransactions.length} transactions from ${source}...`);
 
-    // Type filter
-    if (typeFilter !== 'all' && t.type !== typeFilter) {
-      return false
-    }
+			for (let i = 0; i < newTransactions.length; i++) {
+				const transaction = newTransactions[i];
+				const rowNumber = i + 2; // +2 because of header row and 0-index
 
-    // Category filter
-    if (categoryFilter !== 'all' && t.category !== categoryFilter) {
-      return false
-    }
+				try {
+					await createMutation.mutateAsync(transaction);
+					successCount++;
+					console.log(`✅ Row ${rowNumber}: Successfully imported "${transaction.description}"`);
+				} catch (err) {
+					errorCount++;
+					const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
 
-    // Origin filter
-    if (originFilter !== 'all' && t.origin !== originFilter) {
-      return false
-    }
+					errors.push({
+						row: rowNumber,
+						transaction: transaction,
+						error: errorMessage,
+					});
 
-    // Date range filter
-    if (dateFrom && new Date(t.date) < new Date(dateFrom)) {
-      return false
-    }
-    if (dateTo && new Date(t.date) > new Date(dateTo)) {
-      return false
-    }
+					// Detailed error logging to console
+					console.error(`❌ Row ${rowNumber}: FAILED to import`, {
+						description: transaction.description,
+						amount: transaction.amount,
+						type: transaction.type,
+						date: transaction.date,
+						error: errorMessage,
+						fullTransaction: transaction,
+					});
+				}
+			}
 
-    return true
-  })
+			// Summary logging
+			console.log("\n" + "=".repeat(70));
+			console.log(`📊 IMPORT SUMMARY`);
+			console.log("=".repeat(70));
+			console.log(`✅ Success: ${successCount} transactions`);
+			console.log(`❌ Failed: ${errorCount} transactions`);
+			console.log(`📁 Source: ${source}`);
+			console.log("=".repeat(70));
 
-  // Get unique categories for filter dropdown
-  const uniqueCategories = Array.from(new Set(transactions.map(t => t.category).filter(Boolean)))
+			if (errors.length > 0) {
+				console.log("\n🔍 DETAILED ERROR LOG:");
+				console.table(
+					errors.map((e) => ({
+						Row: e.row,
+						Description: e.transaction.description,
+						Amount: e.transaction.amount,
+						Type: e.transaction.type,
+						Error: e.error,
+					})),
+				);
 
-  // Calcular estatísticas (using filtered transactions)
-  const income = filteredTransactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0)
+				// Offer to download error log
+				const shouldDownload = confirm(
+					`Importação concluída!\n${successCount} transações importadas.\n${errorCount} erros encontrados.\n\n` +
+						`Deseja baixar o log de erros?`,
+				);
 
-  const expense = filteredTransactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0)
+				if (shouldDownload) {
+					downloadErrorLog(errors, source);
+				}
+			} else {
+				alert(`Importação concluída com sucesso!\n${successCount} transações importadas.`);
+			}
 
-  const stats = {
-    total: filteredTransactions.length,
-    income,
-    expense,
-    balance: income - expense
-  }
+			await refetchTransactions();
+			setShowImportModal(false);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Erro ao importar CSV";
+			console.error("❌ CRITICAL ERROR during CSV import:", err);
+			alert(errorMessage);
+		} finally {
+			setImporting(false);
+		}
+	};
 
-  const clearFilters = () => {
-    setSearchTerm('')
-    setTypeFilter('all')
-    setCategoryFilter('all')
-    setOriginFilter('all')
-    setDateFrom('')
-    setDateTo('')
-  }
+	// Helper function to download error log
+	const downloadErrorLog = (
+		errors: Array<{ row: number; transaction: any; error: string }>,
+		source: CSVSource,
+	) => {
+		const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+		const logContent = [
+			`CSV IMPORT ERROR LOG`,
+			`Source: ${source}`,
+			`Date: ${new Date().toLocaleString()}`,
+			`Total Errors: ${errors.length}`,
+			`\n${"=".repeat(80)}\n`,
+			...errors.map(
+				(e) =>
+					`ROW ${e.row}:\n` +
+					`  Description: ${e.transaction.description}\n` +
+					`  Amount: ${e.transaction.amount}\n` +
+					`  Type: ${e.transaction.type}\n` +
+					`  Date: ${e.transaction.date}\n` +
+					`  Error: ${e.error}\n` +
+					`  Full Data: ${JSON.stringify(e.transaction, null, 2)}\n` +
+					`${"-".repeat(80)}\n`,
+			),
+		].join("\n");
 
-  const hasActiveFilters = searchTerm || typeFilter !== 'all' || categoryFilter !== 'all' || originFilter !== 'all' || dateFrom || dateTo
+		const blob = new Blob([logContent], { type: "text/plain" });
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `import-errors_${source}_${timestamp}.txt`;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
-  }
+	// Reprocess categories handler
+	const handleReprocessCategories = async () => {
+		if (
+			!confirm(
+				"Isto irá reprocessar TODAS as transações e atualizar suas categorias automaticamente. Continuar?",
+			)
+		) {
+			return;
+		}
 
-  return (
-    <div className="min-h-screen bg-slate-950 pt-4">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-100">
-                Transações
-              </h1>
-              <p className="mt-2 text-gray-400">
-                Gerencie suas receitas e despesas de forma inteligente
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {/* Export/Import Buttons */}
-              <button
-                onClick={handleExport}
-                disabled={transactions.length === 0}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-green-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <span>📥</span>
-                <span>Exportar CSV</span>
-              </button>
+		setReprocessing(true);
+		console.log("🔄 Starting category reprocessing...");
 
-              <button
-                onClick={handleImportClick}
-                disabled={importing}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-yellow-500/50 hover:bg-slate-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <span>📤</span>
-                <span>{importing ? 'Importando...' : 'Importar CSV'}</span>
-              </button>
+		try {
+			const result = await reprocessCategories(userId);
 
-              <button
-                onClick={downloadCSVTemplate}
-                className="px-4 py-2 bg-slate-800 border border-slate-700 text-gray-100 rounded-lg hover:border-slate-600 hover:bg-slate-700 transition-all font-medium flex items-center gap-2"
-              >
-                <span>📄</span>
-                <span>Modelo CSV</span>
-              </button>
+			console.log("✅ Reprocessing complete:");
+			console.log(`   Total: ${result.total} transactions`);
+			console.log(`   Updated: ${result.updated} transactions`);
+			console.log(`   Unchanged: ${result.unchanged} transactions`);
 
-              <AddTransactionModal
-                userId={userId}
-                onSuccess={refetchTransactions}
-              />
+			alert(
+				`✅ Categorias reprocessadas com sucesso!\n\n` +
+					`Total: ${result.total} transações\n` +
+					`Atualizadas: ${result.updated}\n` +
+					`Sem alteração: ${result.unchanged}`,
+			);
 
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
-          </div>
-        </div>
+			// Refetch transactions to show updated categories
+			await refetchTransactions();
+		} catch (error) {
+			console.error("❌ Error reprocessing categories:", error);
+			alert(
+				`Erro ao reprocessar categorias:\n${error instanceof Error ? error.message : "Erro desconhecido"}`,
+			);
+		} finally {
+			setReprocessing(false);
+		}
+	};
 
-        {/* Filters Section */}
-        {!loading && !error && transactions.length > 0 && (
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">
-                Filtros
-              </h2>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
-                >
-                  Limpar filtros
-                </button>
-              )}
-            </div>
+	// Apply filters to all transactions (for stats and export)
+	const filteredTransactions = allTransactions.filter((t) => {
+		// Search filter
+		if (filters.searchTerm && !t.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) {
+			return false;
+		}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-              {/* Search */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Buscar
-                </label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Descrição..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 placeholder-gray-500 transition-all"
-                />
-              </div>
+		// Type filter
+		if (filters.typeFilter !== "all" && t.type !== filters.typeFilter) {
+			return false;
+		}
 
-              {/* Type Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Tipo
-                </label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as 'all' | 'income' | 'expense')}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
-                >
-                  <option value="all">Todos</option>
-                  <option value="income">Receitas</option>
-                  <option value="expense">Despesas</option>
-                </select>
-              </div>
+		// Category filter
+		if (filters.categoryFilter !== "all" && t.category !== filters.categoryFilter) {
+			return false;
+		}
 
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Categoria
-                </label>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
-                >
-                  <option value="all">Todas</option>
-                  {uniqueCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
+		// Origin filter
+		if (filters.originFilter !== "all" && t.origin !== filters.originFilter) {
+			return false;
+		}
 
-              {/* Origin Filter */}
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Origem
-                </label>
-                <select
-                  value={originFilter}
-                  onChange={(e) => setOriginFilter(e.target.value as 'all' | 'CREDIT_CARD' | 'CASH')}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
-                >
-                  <option value="all">Todas</option>
-                  <option value="CREDIT_CARD">Cartão de Crédito</option>
-                  <option value="CASH">Dinheiro</option>
-                </select>
-              </div>
+		// Card filter
+		if (filters.cardFilter !== "all" && t.card !== filters.cardFilter) {
+			return false;
+		}
 
-              {/* Date Range */}
-              <div className="md:col-span-2 lg:col-span-3 xl:col-span-1">
-                <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                  Período
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    placeholder="De"
-                    className="flex-1 min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
-                    title="Data inicial"
-                  />
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-gray-100 transition-all"
-                    title="Data final"
-                  />
-                </div>
-              </div>
-            </div>
+		// Month range filter (YYYY-MM)
+		const transactionMonth = t.monthYear || t.date.substring(0, 7);
+		if (filters.monthFrom && transactionMonth < filters.monthFrom) {
+			return false;
+		}
+		if (filters.monthTo && transactionMonth > filters.monthTo) {
+			return false;
+		}
 
-            {hasActiveFilters && (
-              <div className="mt-4 text-sm text-gray-400">
-                Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de <span className="tabular-nums">{transactions.length}</span> transações
-              </div>
-            )}
-          </div>
-        )}
+		return true;
+	});
 
-        {/* Stats Cards */}
-        {!loading && !error && transactions.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
-                  <p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-                    {stats.total}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+	// Get unique categories and cards for filter dropdowns
+	const uniqueCategories = Array.from(new Set(allTransactions.map((t) => t.category).filter(Boolean)));
+	const uniqueCards = Array.from(new Set(allTransactions.map((t) => t.card).filter(Boolean)));
 
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
-                  <p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
-                    {formatCurrency(stats.income)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+	// Calcular estatísticas (using filtered transactions)
+	const income = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
 
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
-                  <p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
-                    {formatCurrency(stats.expense)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+	const expense = filteredTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
-            <div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
-              <div className="relative flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
-                  <p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-                    {formatCurrency(stats.balance)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+	const stats = {
+		total: filteredTransactions.length,
+		income,
+		expense,
+		balance: income - expense,
+	};
 
-        {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col justify-center items-center py-16 bg-slate-900 border border-slate-800 rounded-lg">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-500 mb-4" />
-            <p className="text-gray-400 font-medium">Carregando transações...</p>
-          </div>
-        )}
+	// Transactions to display (either paginated or filtered)
+	const displayTransactions = hasActiveFilters ? filteredTransactions : paginatedData?.data || [];
 
-        {/* Error state */}
-        {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-6">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-6 w-6 text-red-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3 flex-1">
-                <h3 className="text-base font-semibold text-red-400">
-                  Erro ao carregar transações
-                </h3>
-                <div className="mt-2 text-sm text-red-300">
-                  {error}
-                </div>
-                <button
-                  onClick={refetchTransactions}
-                  className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/30 transition-all font-medium text-sm"
-                >
-                  Tentar novamente
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+	const formatCurrency = (value: number) => {
+		return new Intl.NumberFormat("pt-BR", {
+			style: "currency",
+			currency: "BRL",
+		}).format(value);
+	};
 
-        {/* Table */}
-        {!loading && !error && (
-          <>
-            {filteredTransactions.length > 0 ? (
-              <TransactionTable
-                transactions={filteredTransactions}
-                onDelete={handleDelete}
-              />
-            ) : (
-              <div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center">
-                <p className="text-gray-400 mb-4">
-                  Nenhuma transação encontrada com os filtros aplicados
-                </p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"
-                >
-                  Limpar Filtros
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+	return (
+		<div className="min-h-screen bg-slate-950 pt-4">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+				{/* Header */}
+				<div className="mb-8">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+						<div>
+							<h1 className="text-4xl font-bold text-gray-100">Transações</h1>
+							<p className="mt-2 text-gray-400">Gerencie suas receitas e despesas de forma inteligente</p>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{/* Export/Import Buttons */}
+							<Button
+								onClick={handleExport}
+								disabled={allTransactions.length === 0}
+								variant="outline"
+								className="hover:border-green-500/50"
+							>
+								<span>📥</span>
+								<span>Exportar CSV</span>
+							</Button>
 
-      {/* Dev Tools - Botão flutuante */}
-      <DevTools userId={userId} onUpdate={refetchTransactions} />
-    </div>
-  )
+							<Button
+								onClick={handleImportClick}
+								disabled={importing}
+								variant="outline"
+								className="hover:border-yellow-500/50"
+							>
+								<span>📤</span>
+								<span>{importing ? "Importando..." : "Importar CSV"}</span>
+							</Button>
+
+							<Button
+								onClick={handleReprocessCategories}
+								variant="outline"
+								disabled={reprocessing}
+								className="hover:border-purple-500/50"
+							>
+								<span>🔄</span>
+								<span>{reprocessing ? "Reprocessando..." : "Reprocessar Categorias"}</span>
+							</Button>
+
+							<AddTransactionModal userId={userId} onSuccess={refetchTransactions} />
+						</div>
+					</div>
+				</div>
+
+				{/* Filters Section */}
+				{!loading && !error && allTransactions.length > 0 && (
+					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
+						<div className="flex items-center justify-between mb-4">
+							<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">Filtros</h2>
+							{hasActiveFilters && (
+								<Button
+									onClick={resetFilters}
+									variant="ghost"
+									size="sm"
+									className="text-yellow-400 hover:text-yellow-300"
+								>
+									Limpar filtros
+								</Button>
+							)}
+						</div>
+
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+							{/* Search */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Buscar</label>
+								<Input
+									type="text"
+									value={filters.searchTerm}
+									onChange={(e) => setFilters({ searchTerm: e.target.value })}
+									placeholder="Descrição..."
+								/>
+							</div>
+
+							{/* Type Filter */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Tipo</label>
+								<Select
+									value={filters.typeFilter}
+									onChange={(e) => setFilters({ typeFilter: e.target.value as "all" | "income" | "expense" })}
+								>
+									<option value="all">Todos</option>
+									<option value="income">Receitas</option>
+									<option value="expense">Despesas</option>
+								</Select>
+							</div>
+
+							{/* Category Filter */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+									Categoria
+								</label>
+								<Select value={filters.categoryFilter} onChange={(e) => setFilters({ categoryFilter: e.target.value })}>
+									<option value="all">Todas</option>
+									{uniqueCategories.map((cat) => (
+										<option key={cat} value={cat}>
+											{cat}
+										</option>
+									))}
+								</Select>
+							</div>
+
+							{/* Origin Filter */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Origem</label>
+								<Select
+									value={filters.originFilter}
+									onChange={(e) => setFilters({ originFilter: e.target.value as "all" | "CREDIT_CARD" | "CASH" })}
+								>
+									<option value="all">Todas</option>
+									<option value="CREDIT_CARD">Cartão de Crédito</option>
+									<option value="CASH">Dinheiro</option>
+								</Select>
+							</div>
+
+							{/* Card Filter */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Cartão</label>
+								<Select value={filters.cardFilter} onChange={(e) => setFilters({ cardFilter: e.target.value })}>
+									<option value="all">Todos</option>
+									{uniqueCards.map((card) => (
+										<option key={card} value={card}>
+											{card}
+										</option>
+									))}
+								</Select>
+							</div>
+
+							{/* Month Range - De */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+									Período De
+								</label>
+								<Input
+									type="month"
+									value={filters.monthFrom}
+									onChange={(e) => setFilters({ monthFrom: e.target.value })}
+									placeholder="Mês inicial"
+									title="Mês inicial"
+								/>
+							</div>
+
+							{/* Month Range - Até */}
+							<div>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+									Período Até
+								</label>
+								<Input
+									type="month"
+									value={filters.monthTo}
+									onChange={(e) => setFilters({ monthTo: e.target.value })}
+									placeholder="Mês final"
+									title="Mês final"
+								/>
+							</div>
+						</div>
+
+						{hasActiveFilters && (
+							<div className="mt-4 text-sm text-gray-400">
+								Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de{" "}
+								<span className="tabular-nums">{allTransactions.length}</span> transações
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Stats Cards */}
+				{!loading && !error && allTransactions.length > 0 && (
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
+									<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{stats.total}</p>
+								</div>
+								<div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+										/>
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
+									<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
+										{formatCurrency(stats.income)}
+									</p>
+								</div>
+								<div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
+									<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
+										{formatCurrency(stats.expense)}
+									</p>
+								</div>
+								<div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
+							<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
+							<div className="relative flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
+									<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
+										{formatCurrency(stats.balance)}
+									</p>
+								</div>
+								<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth={2}
+											d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+										/>
+									</svg>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Loading state */}
+				{loading && <TableSkeleton rows={10} />}
+
+				{/* Error state */}
+				{error && !loading && (
+					<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-6">
+						<div className="flex items-start">
+							<div className="flex-shrink-0">
+								<svg className="h-6 w-6 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+									<path
+										fillRule="evenodd"
+										d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+										clipRule="evenodd"
+									/>
+								</svg>
+							</div>
+							<div className="ml-3 flex-1">
+								<h3 className="text-base font-semibold text-red-400">Erro ao carregar transações</h3>
+								<div className="mt-2 text-sm text-red-300">{error}</div>
+								<Button
+									onClick={refetchTransactions}
+									variant="outline"
+									size="sm"
+									className="mt-4 bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30"
+								>
+									Tentar novamente
+								</Button>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Table */}
+				{!loading && !error && (
+					<>
+						{displayTransactions.length > 0 ? (
+							<>
+								<TransactionTable transactions={displayTransactions} onDelete={handleDelete} onEdit={handleEdit} />
+
+								{/* Pagination - only show when no filters are active */}
+								{!hasActiveFilters && paginatedData && (
+									<div className="mt-6">
+										{/* Page size selector */}
+										<div className="flex items-center justify-between mb-4">
+											<div className="flex items-center gap-2 text-sm text-gray-400">
+												<span>Exibir</span>
+												<Select
+													value={filters.pageSize.toString()}
+													onChange={(e) => {
+														setFilters({ pageSize: Number(e.target.value) });
+														setCurrentPage(1);
+													}}
+													className="w-20 h-8"
+												>
+													<option value="5">5</option>
+													<option value="10">10</option>
+													<option value="25">25</option>
+												</Select>
+												<span>itens por página</span>
+											</div>
+										</div>
+
+										{paginatedData.pagination.totalPages > 1 && (
+											<div className="flex justify-center">
+												<Pagination>
+													<PaginationContent>
+														<PaginationItem>
+															<PaginationPrevious
+																onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+																disabled={currentPage === 1}
+																className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+															/>
+														</PaginationItem>
+
+														{/* Page numbers logic */}
+														{(() => {
+															const { totalPages } = paginatedData.pagination;
+															const pages: (number | "ellipsis")[] = [];
+
+															if (totalPages <= 7) {
+																for (let i = 1; i <= totalPages; i++) {
+																	pages.push(i);
+																}
+															} else {
+																pages.push(1);
+
+																if (currentPage > 3) {
+																	pages.push("ellipsis");
+																}
+
+																const start = Math.max(2, currentPage - 1);
+																const end = Math.min(totalPages - 1, currentPage + 1);
+
+																for (let i = start; i <= end; i++) {
+																	pages.push(i);
+																}
+
+																if (currentPage < totalPages - 2) {
+																	pages.push("ellipsis");
+																}
+
+																pages.push(totalPages);
+															}
+
+															return pages.map((page, idx) => (
+																<PaginationItem key={idx}>
+																	{page === "ellipsis" ? (
+																		<PaginationEllipsis />
+																	) : (
+																		<PaginationLink
+																			onClick={() => setCurrentPage(page)}
+																			isActive={currentPage === page}
+																			className="cursor-pointer"
+																		>
+																			{page}
+																		</PaginationLink>
+																	)}
+																</PaginationItem>
+															));
+														})()}
+
+														<PaginationItem>
+															<PaginationNext
+																onClick={() =>
+																	setCurrentPage((p) => Math.min(paginatedData.pagination.totalPages, p + 1))
+																}
+																disabled={!paginatedData.pagination.hasMore}
+																className={
+																	!paginatedData.pagination.hasMore
+																		? "pointer-events-none opacity-50"
+																		: "cursor-pointer"
+																}
+															/>
+														</PaginationItem>
+													</PaginationContent>
+												</Pagination>
+											</div>
+										)}
+
+										{/* Pagination info */}
+										<div className="mt-4 text-center text-sm text-gray-400">
+											Exibindo {(currentPage - 1) * filters.pageSize + 1}-
+											{Math.min(currentPage * filters.pageSize, paginatedData.pagination.total)} de{" "}
+											{paginatedData.pagination.total} transações
+										</div>
+									</div>
+								)}
+							</>
+						) : (
+							<div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center">
+								<p className="text-gray-400 mb-4">
+									{hasActiveFilters
+										? "Nenhuma transação encontrada com os filtros aplicados"
+										: "Nenhuma transação encontrada"}
+								</p>
+								{hasActiveFilters && <Button onClick={resetFilters}>Limpar Filtros</Button>}
+							</div>
+						)}
+					</>
+				)}
+			</div>
+
+			{/* Dev Tools - Botão flutuante */}
+			<DevTools userId={userId} onUpdate={refetchTransactions} />
+
+			{/* Edit Transaction Modal */}
+			{editingTransaction && (
+				<EditTransactionModal
+					transaction={editingTransaction}
+					userId={userId}
+					open={showEditModal}
+					onOpenChange={setShowEditModal}
+					onSuccess={refetchTransactions}
+				/>
+			)}
+
+			{/* Import CSV Modal */}
+			<ImportCSVModal
+				isOpen={showImportModal}
+				onClose={() => setShowImportModal(false)}
+				onImport={handleImport}
+				isImporting={importing}
+			/>
+		</div>
+	);
 }

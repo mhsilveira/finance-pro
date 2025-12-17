@@ -1,54 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
-import {
-	Chart as ChartJS,
-	CategoryScale,
-	LinearScale,
-	BarElement,
-	ArcElement,
-	Title,
-	Tooltip,
-	Legend,
-} from "chart.js";
+import { useState } from "react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend } from "chart.js";
 import { Bar, Pie } from "react-chartjs-2";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
-ChartJS.register(
-	CategoryScale,
-	LinearScale,
-	BarElement,
-	ArcElement,
-	Title,
-	Tooltip,
-	Legend,
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 export default function AnalyticsPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
 	const [selectedPeriod, setSelectedPeriod] = useState<"all" | "month" | "quarter">("all");
 
 	const userId = "blanchimaah";
 
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
-	}, []);
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	const formatCurrency = (value: number) => {
 		return new Intl.NumberFormat("pt-BR", {
@@ -63,12 +28,12 @@ export default function AnalyticsPage() {
 
 		if (selectedPeriod === "month") {
 			const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-			return transactions.filter(t => new Date(t.date) >= monthAgo);
+			return transactions.filter((t) => new Date(t.date) >= monthAgo);
 		}
 
 		if (selectedPeriod === "quarter") {
 			const quarterAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
-			return transactions.filter(t => new Date(t.date) >= quarterAgo);
+			return transactions.filter((t) => new Date(t.date) >= quarterAgo);
 		}
 
 		return transactions;
@@ -134,13 +99,9 @@ export default function AnalyticsPage() {
 	const monthlyComparison = getMonthlyComparison();
 
 	// Calculate totals
-	const totalExpenses = filteredTransactions
-		.filter((t) => t.type === "expense")
-		.reduce((sum, t) => sum + t.amount, 0);
+	const totalExpenses = filteredTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
-	const totalIncome = filteredTransactions
-		.filter((t) => t.type === "income")
-		.reduce((sum, t) => sum + t.amount, 0);
+	const totalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
 
 	const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
@@ -198,9 +159,7 @@ export default function AnalyticsPage() {
 		return (
 			<div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
 				<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md">
-					<h3 className="text-xl font-semibold text-red-400 mb-2">
-						Erro ao carregar dados
-					</h3>
+					<h3 className="text-xl font-semibold text-red-400 mb-2">Erro ao carregar dados</h3>
 					<p className="text-red-300">{error}</p>
 				</div>
 			</div>
@@ -212,12 +171,8 @@ export default function AnalyticsPage() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-gray-100">
-						Análises e Insights
-					</h1>
-					<p className="mt-2 text-gray-400">
-						Entenda melhor seus padrões de gastos
-					</p>
+					<h1 className="text-4xl font-bold text-gray-100">Análises e Insights</h1>
+					<p className="mt-2 text-gray-400">Entenda melhor seus padrões de gastos</p>
 				</div>
 
 				{/* Period Filter */}
@@ -257,32 +212,20 @@ export default function AnalyticsPage() {
 				{/* Key Metrics */}
 				<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
-						<p className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">
-							Total em Despesas
-						</p>
-						<p className="text-3xl font-semibold text-red-400 tabular-nums">
-							{formatCurrency(totalExpenses)}
-						</p>
+						<p className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">Total em Despesas</p>
+						<p className="text-3xl font-semibold text-red-400 tabular-nums">{formatCurrency(totalExpenses)}</p>
 					</div>
 
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
-						<p className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">
-							Total em Receitas
-						</p>
-						<p className="text-3xl font-semibold text-green-400 tabular-nums">
-							{formatCurrency(totalIncome)}
-						</p>
+						<p className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">Total em Receitas</p>
+						<p className="text-3xl font-semibold text-green-400 tabular-nums">{formatCurrency(totalIncome)}</p>
 					</div>
 
 					<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
 						<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
 						<div className="relative">
-							<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-2">
-								Taxa de Economia
-							</p>
-							<p className="text-3xl font-semibold text-gray-100 tabular-nums">
-								{savingsRate.toFixed(1)}%
-							</p>
+							<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-2">Taxa de Economia</p>
+							<p className="text-3xl font-semibold text-gray-100 tabular-nums">{savingsRate.toFixed(1)}%</p>
 						</div>
 					</div>
 				</div>
@@ -307,28 +250,24 @@ export default function AnalyticsPage() {
 									scales: {
 										y: {
 											beginAtZero: true,
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
 										},
 										x: {
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
-										}
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
+										},
 									},
 								}}
 							/>
 						) : (
-							<p className="text-gray-400 text-center py-8">
-								Sem dados de despesas
-							</p>
+							<p className="text-gray-400 text-center py-8">Sem dados de despesas</p>
 						)}
 					</div>
 
 					{/* Monthly Comparison */}
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
-							Comparação Mensal
-						</h2>
+						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Comparação Mensal</h2>
 						{monthlyComparison.length > 0 ? (
 							<Bar
 								data={monthlyChartData}
@@ -338,28 +277,26 @@ export default function AnalyticsPage() {
 										legend: {
 											position: "bottom",
 											labels: {
-												color: '#9CA3AF',
-												font: { size: 12 }
-											}
+												color: "#9CA3AF",
+												font: { size: 12 },
+											},
 										},
 									},
 									scales: {
 										y: {
 											beginAtZero: true,
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
 										},
 										x: {
-											ticks: { color: '#6B7280' },
-											grid: { color: 'rgba(71, 85, 105, 0.3)' }
-										}
+											ticks: { color: "#6B7280" },
+											grid: { color: "rgba(71, 85, 105, 0.3)" },
+										},
 									},
 								}}
 							/>
 						) : (
-							<p className="text-gray-400 text-center py-8">
-								Sem dados suficientes
-							</p>
+							<p className="text-gray-400 text-center py-8">Sem dados suficientes</p>
 						)}
 					</div>
 				</div>
@@ -379,21 +316,16 @@ export default function AnalyticsPage() {
 											<div className="flex items-center gap-3">
 												<span className="text-2xl">{index === 0 ? "👑" : "📁"}</span>
 												<div>
-													<p className="font-medium text-gray-100">
-														{cat.category}
-													</p>
+													<p className="font-medium text-gray-100">{cat.category}</p>
 													<p className="text-sm text-gray-400">
-														<span className="tabular-nums">{cat.count}</span> transações • Média: <span className="tabular-nums">{formatCurrency(cat.average)}</span>
+														<span className="tabular-nums">{cat.count}</span> transações • Média:{" "}
+														<span className="tabular-nums">{formatCurrency(cat.average)}</span>
 													</p>
 												</div>
 											</div>
 											<div className="text-right">
-												<p className="font-semibold text-gray-100 tabular-nums">
-													{formatCurrency(cat.total)}
-												</p>
-												<p className="text-sm text-gray-500 tabular-nums">
-													{percentage.toFixed(1)}%
-												</p>
+												<p className="font-semibold text-gray-100 tabular-nums">{formatCurrency(cat.total)}</p>
+												<p className="text-sm text-gray-500 tabular-nums">{percentage.toFixed(1)}%</p>
 											</div>
 										</div>
 										<div className="w-full bg-slate-800 rounded-full h-2">
@@ -407,17 +339,13 @@ export default function AnalyticsPage() {
 							})}
 						</div>
 					) : (
-						<p className="text-gray-400 text-center py-8">
-							Nenhuma categoria de despesa encontrada
-						</p>
+						<p className="text-gray-400 text-center py-8">Nenhuma categoria de despesa encontrada</p>
 					)}
 				</div>
 
 				{/* Top Expenses */}
 				<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-					<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">
-						Maiores Despesas
-					</h2>
+					<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Maiores Despesas</h2>
 					{topExpenses.length > 0 ? (
 						<div className="space-y-2">
 							{topExpenses.map((t, index) => (
@@ -430,25 +358,18 @@ export default function AnalyticsPage() {
 											{index + 1}
 										</div>
 										<div>
-											<p className="font-medium text-gray-100">
-												{t.description}
-											</p>
+											<p className="font-medium text-gray-100">{t.description}</p>
 											<p className="text-sm text-gray-400">
-												{new Date(t.date).toLocaleDateString("pt-BR")} •{" "}
-												{t.category}
+												{new Date(t.date).toLocaleDateString("pt-BR")} • {t.category}
 											</p>
 										</div>
 									</div>
-									<p className="font-semibold text-red-400 text-lg tabular-nums">
-										{formatCurrency(t.amount)}
-									</p>
+									<p className="font-semibold text-red-400 text-lg tabular-nums">{formatCurrency(t.amount)}</p>
 								</div>
 							))}
 						</div>
 					) : (
-						<p className="text-gray-400 text-center py-8">
-							Nenhuma despesa encontrada
-						</p>
+						<p className="text-gray-400 text-center py-8">Nenhuma despesa encontrada</p>
 					)}
 				</div>
 			</div>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTransactions } from "@/services/api";
-import type { Transaction } from "@/types/transaction";
+import { useAllTransactions } from "@/hooks/useTransactions";
 
 interface Budget {
 	category: string;
@@ -18,15 +17,15 @@ interface Goal {
 }
 
 export default function BudgetPage() {
-	const [transactions, setTransactions] = useState<Transaction[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState("");
 	const [budgets, setBudgets] = useState<Budget[]>([]);
 	const [goals, setGoals] = useState<Goal[]>([]);
 	const [showBudgetModal, setShowBudgetModal] = useState(false);
 	const [showGoalModal, setShowGoalModal] = useState(false);
 
 	const userId = "blanchimaah";
+
+	const { data: transactions = [], isLoading: loading, error: queryError } = useAllTransactions(userId);
+	const error = queryError ? (queryError as Error).message : "";
 
 	// Load budgets and goals from localStorage
 	useEffect(() => {
@@ -51,23 +50,6 @@ export default function BudgetPage() {
 		}
 	}, []);
 
-	useEffect(() => {
-		const fetchTransactions = async () => {
-			try {
-				setLoading(true);
-				setError("");
-				const data = await getTransactions(userId);
-				setTransactions(data);
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Erro ao carregar dados");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchTransactions();
-	}, []);
-
 	const formatCurrency = (value: number) => {
 		return new Intl.NumberFormat("pt-BR", {
 			style: "currency",
@@ -89,13 +71,38 @@ export default function BudgetPage() {
 			})
 			.forEach((t) => {
 				const category = t.category || "Outros";
-				categoryMap.set(category, (categoryMap.get(category) || 0) + t.amount);
+				// Ensure amount is positive (use absolute value for safety)
+				const amount = Math.abs(Number(t.amount) || 0);
+				categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
 			});
 
 		return categoryMap;
 	};
 
 	const currentExpenses = getCurrentMonthExpenses();
+
+	// Debug logging for expenses
+	useEffect(() => {
+		if (currentExpenses.size > 0) {
+			console.log("📊 Current Month Expenses by Category:");
+			const expensesData = Array.from(currentExpenses.entries()).map(([category, amount]) => {
+				const budget = budgets.find((b) => b.category === category);
+				return {
+					Category: category,
+					Spent: `R$ ${amount.toFixed(2)}`,
+					Budget: budget ? `R$ ${budget.limit.toFixed(2)}` : "Sem orçamento",
+					Status: budget
+						? amount > budget.limit
+							? "🔴 Acima"
+							: amount > budget.limit * 0.8
+								? "🟡 Atenção"
+								: "🟢 OK"
+						: "⚪ N/A",
+				};
+			});
+			console.table(expensesData);
+		}
+	}, [currentExpenses, budgets]);
 
 	const handleAddBudget = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -156,20 +163,14 @@ export default function BudgetPage() {
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-gray-100">
-						Orçamento e Metas
-					</h1>
-					<p className="mt-2 text-gray-400">
-						Defina limites e alcance seus objetivos financeiros
-					</p>
+					<h1 className="text-4xl font-bold text-gray-100">Orçamento e Metas</h1>
+					<p className="mt-2 text-gray-400">Defina limites e alcance seus objetivos financeiros</p>
 				</div>
 
 				{/* Budgets Section */}
 				<div className="mb-8">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-semibold text-gray-100 uppercase tracking-wide">
-							Orçamentos Mensais
-						</h2>
+						<h2 className="text-2xl font-semibold text-gray-100 uppercase tracking-wide">Orçamentos Mensais</h2>
 						<button
 							onClick={() => setShowBudgetModal(true)}
 							className="px-4 py-2 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold shadow-lg shadow-yellow-500/20"
@@ -177,6 +178,38 @@ export default function BudgetPage() {
 							+ Adicionar Orçamento
 						</button>
 					</div>
+
+					{/* Categories without budgets warning */}
+					{(() => {
+						const categoriesWithoutBudget = Array.from(currentExpenses.keys()).filter(
+							(cat) => !budgets.some((b) => b.category === cat),
+						);
+						if (categoriesWithoutBudget.length > 0) {
+							return (
+								<div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+									<div className="flex items-start gap-3">
+										<span className="text-yellow-400 text-xl">⚠️</span>
+										<div className="flex-1">
+											<p className="text-yellow-400 font-semibold mb-2">
+												Categorias sem orçamento definido:
+											</p>
+											<div className="flex flex-wrap gap-2">
+												{categoriesWithoutBudget.map((cat) => (
+													<span
+														key={cat}
+														className="px-3 py-1 bg-yellow-500/20 text-yellow-300 rounded-full text-sm font-medium"
+													>
+														{cat} - {formatCurrency(currentExpenses.get(cat) || 0)}
+													</span>
+												))}
+											</div>
+										</div>
+									</div>
+								</div>
+							);
+						}
+						return null;
+					})()}
 
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 						{budgets.map((budget) => {
@@ -191,9 +224,7 @@ export default function BudgetPage() {
 									className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all"
 								>
 									<div className="flex items-center justify-between mb-4">
-										<h3 className="font-semibold text-gray-100 uppercase tracking-wide">
-											{budget.category}
-										</h3>
+										<h3 className="font-semibold text-gray-100 uppercase tracking-wide">{budget.category}</h3>
 										<button
 											onClick={() => handleRemoveBudget(budget.category)}
 											className="text-gray-500 hover:text-red-400 transition-colors"
@@ -209,11 +240,7 @@ export default function BudgetPage() {
 											</span>
 											<span
 												className={`text-sm font-semibold tabular-nums ${
-													isOverBudget
-														? "text-red-400"
-														: isWarning
-															? "text-yellow-400"
-															: "text-green-400"
+													isOverBudget ? "text-red-400" : isWarning ? "text-yellow-400" : "text-green-400"
 												}`}
 											>
 												{percentage.toFixed(0)}%
@@ -239,13 +266,9 @@ export default function BudgetPage() {
 										{isOverBudget ? (
 											<span className="text-red-400">⚠️ Acima do limite!</span>
 										) : isWarning ? (
-											<span className="text-yellow-400">
-												⚡ Atenção aos gastos
-											</span>
+											<span className="text-yellow-400">⚡ Atenção aos gastos</span>
 										) : (
-											<span className="text-green-400">
-												✓ Dentro do orçamento
-											</span>
+											<span className="text-green-400">✓ Dentro do orçamento</span>
 										)}
 									</div>
 								</div>
@@ -254,9 +277,7 @@ export default function BudgetPage() {
 
 						{budgets.length === 0 && (
 							<div className="col-span-full text-center py-12 bg-slate-900 border border-slate-800 rounded-lg">
-								<p className="text-gray-400 mb-4">
-									Nenhum orçamento definido
-								</p>
+								<p className="text-gray-400 mb-4">Nenhum orçamento definido</p>
 								<button
 									onClick={() => setShowBudgetModal(true)}
 									className="px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold shadow-lg shadow-yellow-500/20"
@@ -271,9 +292,7 @@ export default function BudgetPage() {
 				{/* Goals Section */}
 				<div>
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-semibold text-gray-100 uppercase tracking-wide">
-							Metas Financeiras
-						</h2>
+						<h2 className="text-2xl font-semibold text-gray-100 uppercase tracking-wide">Metas Financeiras</h2>
 						<button
 							onClick={() => setShowGoalModal(true)}
 							className="px-4 py-2 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold shadow-lg shadow-yellow-500/20"
@@ -285,10 +304,7 @@ export default function BudgetPage() {
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{goals.map((goal) => {
 							const percentage = (goal.current / goal.target) * 100;
-							const daysLeft = Math.ceil(
-								(new Date(goal.deadline).getTime() - Date.now()) /
-									(1000 * 60 * 60 * 24),
-							);
+							const daysLeft = Math.ceil((new Date(goal.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
 							return (
 								<div
@@ -298,9 +314,7 @@ export default function BudgetPage() {
 									<div className="flex items-center justify-between mb-4">
 										<div className="flex items-center gap-2">
 											<span className="text-2xl">🎯</span>
-											<h3 className="font-semibold text-gray-100">
-												{goal.name}
-											</h3>
+											<h3 className="font-semibold text-gray-100">{goal.name}</h3>
 										</div>
 										<button
 											onClick={() => handleRemoveGoal(goal.id)}
@@ -330,15 +344,11 @@ export default function BudgetPage() {
 									<div className="space-y-2 text-sm">
 										<div className="flex justify-between">
 											<span className="text-gray-400">Atual:</span>
-											<span className="font-semibold text-gray-100 tabular-nums">
-												{formatCurrency(goal.current)}
-											</span>
+											<span className="font-semibold text-gray-100 tabular-nums">{formatCurrency(goal.current)}</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-gray-400">Meta:</span>
-											<span className="font-semibold text-gray-100 tabular-nums">
-												{formatCurrency(goal.target)}
-											</span>
+											<span className="font-semibold text-gray-100 tabular-nums">{formatCurrency(goal.target)}</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-gray-400">Faltam:</span>
@@ -349,13 +359,9 @@ export default function BudgetPage() {
 										<div className="flex justify-between pt-2 border-t border-slate-800">
 											<span className="text-gray-400">Prazo:</span>
 											<span
-												className={`font-semibold tabular-nums ${
-													daysLeft < 30 ? "text-red-400" : "text-gray-100"
-												}`}
+												className={`font-semibold tabular-nums ${daysLeft < 30 ? "text-red-400" : "text-gray-100"}`}
 											>
-												{daysLeft > 0
-													? `${daysLeft} dias`
-													: "Prazo expirado"}
+												{daysLeft > 0 ? `${daysLeft} dias` : "Prazo expirado"}
 											</span>
 										</div>
 									</div>
@@ -382,9 +388,7 @@ export default function BudgetPage() {
 			{showBudgetModal && (
 				<div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 					<div className="bg-slate-900 border border-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-						<h3 className="text-xl font-semibold text-gray-100 mb-4 uppercase tracking-wide">
-							Adicionar Orçamento
-						</h3>
+						<h3 className="text-xl font-semibold text-gray-100 mb-4 uppercase tracking-wide">Adicionar Orçamento</h3>
 						<form onSubmit={handleAddBudget} className="space-y-4">
 							<div>
 								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
@@ -436,9 +440,7 @@ export default function BudgetPage() {
 			{showGoalModal && (
 				<div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
 					<div className="bg-slate-900 border border-slate-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-						<h3 className="text-xl font-semibold text-gray-100 mb-4 uppercase tracking-wide">
-							Adicionar Meta
-						</h3>
+						<h3 className="text-xl font-semibold text-gray-100 mb-4 uppercase tracking-wide">Adicionar Meta</h3>
 						<form onSubmit={handleAddGoal} className="space-y-4">
 							<div>
 								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
@@ -480,9 +482,7 @@ export default function BudgetPage() {
 								/>
 							</div>
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
-									Prazo
-								</label>
+								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Prazo</label>
 								<input
 									type="date"
 									name="deadline"

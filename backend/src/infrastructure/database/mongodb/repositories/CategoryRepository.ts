@@ -9,6 +9,10 @@ export class CategoryRepository {
     return await CategoryModel.findOne({ key: key.toUpperCase() }).lean()
   }
 
+  async findByName(name: string): Promise<ICategory | null> {
+    return await CategoryModel.findOne({ name }).lean()
+  }
+
   async findByType(type: 'income' | 'expense'): Promise<ICategory[]> {
     return await CategoryModel.find({
       $or: [{ type }, { type: 'both' }]
@@ -112,11 +116,32 @@ export class CategoryRepository {
         color: '#f43f5e'
       },
       {
+        key: 'CLOTHING',
+        name: 'Vestuário',
+        type: 'expense',
+        icon: '👔',
+        color: '#d946ef'
+      },
+      {
         key: 'GENERAL',
         name: 'Gastos Gerais',
         type: 'both',
         icon: '📦',
         color: '#64748b'
+      },
+      {
+        key: 'OTHER',
+        name: 'Outros',
+        type: 'both',
+        icon: '🔖',
+        color: '#78716c'
+      },
+      {
+        key: 'TO_CATEGORIZE',
+        name: 'A Categorizar',
+        type: 'expense',
+        icon: '🏷️',
+        color: '#9ca3af'
       }
     ]
 

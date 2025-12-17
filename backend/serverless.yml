@@ -82,6 +82,14 @@ functions:
           method: get
           cors: true
 
+  reprocessCategories:
+    handler: src/interface/lambda/reprocessCategories.handler
+    events:
+      - http:
+          path: transactions/reprocess-categories
+          method: post
+          cors: true
+
 custom:
   serverless-offline:
     httpPort: 3001
