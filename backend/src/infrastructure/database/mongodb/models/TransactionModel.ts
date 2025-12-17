@@ -7,6 +7,8 @@ const TransactionSchema = new Schema(
     amount: { type: mongoose.Schema.Types.Decimal128, required: true }, // Decimal128
     currency: { type: String, default: 'BRL' },
     type: { type: String, required: true, enum: ['income', 'expense'] },
+    origin: { type: String, enum: ['CREDIT_CARD', 'CASH'], default: null },
+    card: { type: String, default: null },
     bank: { type: String, default: null },
     categoryId: { type: String, default: null, index: true }, // referencia leve
     categoryName: { type: String, required: true }, // denormalizado
@@ -26,12 +28,12 @@ TransactionSchema.method('toDomain', function () {
   return {
     id: this._id.toString(),
     userId: this.userId,
-    accountId: this.accountId,
     description: this.description,
     amount: parseFloat(amountStr), // pra front usar Intl.NumberFormat direto
     currency: this.currency,
     type: this.type,
-    method: this.method,
+    origin: this.origin,
+    card: this.card,
     bank: this.bank,
     categoryId: this.categoryId,
     categoryName: this.categoryName,

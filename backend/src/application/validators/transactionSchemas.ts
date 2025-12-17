@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const originEnum = z.enum(['CREDIT_CARD', 'CASH'])
+const originEnum = z.enum(['CREDIT_CARD', 'CASH']).nullable()
 
 const amountSchema = z.preprocess(
   val => {
@@ -72,7 +72,8 @@ export const updateTransactionSchema = z
   .superRefine((data, ctx) => {
     if (
       data.origin === 'CREDIT_CARD' &&
-      (data.card === undefined || data.card.trim().length === 0)
+      data.card &&
+      data.card.trim().length === 0
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

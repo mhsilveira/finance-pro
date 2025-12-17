@@ -23,11 +23,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		setMounted(true);
 	}, []);
 
-	return (
-		<ThemeContext.Provider value={{ theme: "dark", mounted }}>
-			{children}
-		</ThemeContext.Provider>
-	);
+	return <ThemeContext.Provider value={{ theme: "dark", mounted }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

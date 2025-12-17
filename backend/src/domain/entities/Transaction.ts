@@ -19,8 +19,8 @@ export class Transaction {
     if (!this.description || this.description.trim().length === 0) {
       throw new Error('Description is required')
     }
-    if (this.amount <= 0) {
-      throw new Error('Amount must be greater than zero')
+    if (this.amount === 0) {
+      throw new Error('Amount cannot be zero')
     }
     if (!['income', 'expense'].includes(this.type)) {
       throw new Error('Type must be income or expense')

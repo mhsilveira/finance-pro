@@ -74,7 +74,7 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
         type: (t as any).type,
         origin: (t as any).origin,
         card: (t as any).card,
-        category: (t as any).categoryName,
+        category: (t as any).category,
         date: toDateOnly(dt),
         monthYear
       }

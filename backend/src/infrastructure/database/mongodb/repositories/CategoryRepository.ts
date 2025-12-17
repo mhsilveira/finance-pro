@@ -116,11 +116,25 @@ export class CategoryRepository {
         color: '#f43f5e'
       },
       {
+        key: 'CLOTHING',
+        name: 'Vestuário',
+        type: 'expense',
+        icon: '👔',
+        color: '#d946ef'
+      },
+      {
         key: 'GENERAL',
         name: 'Gastos Gerais',
         type: 'both',
         icon: '📦',
         color: '#64748b'
+      },
+      {
+        key: 'OTHER',
+        name: 'Outros',
+        type: 'both',
+        icon: '🔖',
+        color: '#78716c'
       },
       {
         key: 'TO_CATEGORIZE',

@@ -29,6 +29,8 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       description: found.description,
       amount: found.amount,
       type: found.type,
+      origin: found.origin,
+      card: found.card,
       category: found.category,
       date: safeISO(found.date),
       createdAt: safeISO(found.createdAt),

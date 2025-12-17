@@ -9,12 +9,6 @@ function normalizeAmount (val: number | string): number {
   return Number(parseFloat(s))
 }
 
-function toMonthYear (d: Date): string {
-  const year = d.getUTCFullYear()
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
-  return `${year}-${month}`
-}
-
 export class CreateTransaction {
   constructor (
     private readonly repo: ITransactionRepository,
@@ -27,7 +21,7 @@ export class CreateTransaction {
     amount: number | string
     card?: string
     type: 'income' | 'expense'
-    origin: 'CREDIT_CARD' | 'CASH'
+    origin?: 'CREDIT_CARD' | 'CASH' | null
     category: string
     date: Date
   }): Promise<Transaction> {
@@ -49,7 +43,7 @@ export class CreateTransaction {
       params.description,
       amountNumber,
       params.type,
-      params.origin === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'CASH',
+      params.origin === 'CREDIT_CARD' ? 'CREDIT_CARD' : params.origin === 'CASH' ? 'CASH' : undefined,
       category.name, // Usa o nome da categoria do banco
       params.date,
       new Date(),

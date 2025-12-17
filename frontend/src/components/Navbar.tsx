@@ -27,9 +27,7 @@ export function Navbar() {
 						<div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center group-hover:bg-yellow-400 transition-all">
 							<span className="text-slate-950 text-xl font-bold">💰</span>
 						</div>
-						<span className="text-xl font-bold text-gray-100 tracking-tight">
-							Finance Pro
-						</span>
+						<span className="text-xl font-bold text-gray-100 tracking-tight">Finance Pro</span>
 					</Link>
 
 					{/* Desktop Navigation */}

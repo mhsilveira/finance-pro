@@ -16,11 +16,7 @@ export const metadata = {
 	description: "Controle financeiro pessoal inteligente",
 };
 
-export default function RootLayout({
-	children,
-}: {
-	children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="pt-BR" suppressHydrationWarning>
 			<body className={poppins.className}>

@@ -1,192 +1,380 @@
 // services/csv.ts
-import type { Transaction, CreateTransactionPayload } from '../types/transaction';
+import type { Transaction, CreateTransactionPayload } from "../types/transaction";
+import type { CSVSource } from "../components/ImportCSVModal";
+import { predictCategory } from "@/lib/categoryPredictor";
+
+// ============================================================================
+// EXPORT TO CSV
+// ============================================================================
 
 export function exportTransactionsToCSV(transactions: Transaction[]): void {
 	if (transactions.length === 0) {
-		alert('Nenhuma transação para exportar');
+		alert("Nenhuma transação para exportar");
 		return;
 	}
 
-	// CSV Headers
-	const headers = [
-		'ID',
-		'Data',
-		'Descrição',
-		'Valor',
-		'Tipo',
-		'Categoria',
-		'Origem',
-		'Cartão',
-		'Criado em',
-	];
+	const headers = ["ID", "Data", "Descrição", "Valor", "Tipo", "Categoria", "Origem", "Cartão", "Criado em"];
 
-	// Convert transactions to CSV rows
 	const rows = transactions.map((t) => [
-		t.id || '',
-		t.date || '',
-		t.description || '',
-		t.amount?.toString() || '0',
-		t.type || '',
-		t.category || '',
-		t.origin || '',
-		t.card || '',
-		t.createdAt || '',
+		t.id || "",
+		t.date || "",
+		t.description || "",
+		t.amount?.toString() || "0",
+		t.type || "",
+		t.category || "",
+		t.origin || "",
+		t.card || "",
+		t.createdAt || "",
 	]);
 
-	// Combine headers and rows
 	const csvContent = [
-		headers.join(','),
+		headers.join(","),
 		...rows.map((row) =>
-			row.map((cell) => {
-				// Escape quotes and wrap in quotes if contains comma or newline
-				const cellStr = String(cell);
-				if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
-					return `"${cellStr.replace(/"/g, '""')}"`;
-				}
-				return cellStr;
-			}).join(',')
+			row
+				.map((cell) => {
+					const cellStr = String(cell);
+					if (cellStr.includes(",") || cellStr.includes('"') || cellStr.includes("\n")) {
+						return `"${cellStr.replace(/"/g, '""')}"`;
+					}
+					return cellStr;
+				})
+				.join(","),
 		),
-	].join('\n');
+	].join("\n");
 
-	// Create blob and download
-	const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-	const link = document.createElement('a');
+	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+	const link = document.createElement("a");
 	const url = URL.createObjectURL(blob);
 
-	const date = new Date().toISOString().split('T')[0];
-	link.setAttribute('href', url);
-	link.setAttribute('download', `transacoes_${date}.csv`);
-	link.style.visibility = 'hidden';
+	const date = new Date().toISOString().split("T")[0];
+	link.setAttribute("href", url);
+	link.setAttribute("download", `transacoes_${date}.csv`);
+	link.style.visibility = "hidden";
 
 	document.body.appendChild(link);
 	link.click();
 	document.body.removeChild(link);
 }
 
-export function parseCSV(csvText: string, cardName?: string): CreateTransactionPayload[] {
-	const lines = csvText.trim().split('\n');
+// ============================================================================
+// IMPORT FROM CSV - MAIN FUNCTION
+// ============================================================================
+
+export function parseCSV(csvText: string, source: CSVSource): CreateTransactionPayload[] {
+	const lines = csvText.trim().split("\n");
 
 	if (lines.length < 2) {
-		throw new Error('CSV vazio ou inválido');
+		throw new Error("CSV vazio ou inválido");
 	}
 
-	// Parse header
-	const headerLine = lines[0];
-	const headers = parseCSVLine(headerLine).map(h => h.toLowerCase());
+	// Route to appropriate parser based on source
+	switch (source) {
+		case "NUBANK_CHECKING":
+			return parseNubankChecking(lines);
+		case "NUBANK_CREDIT":
+			return parseNubankCredit(lines);
+		case "ITAU_CHECKING":
+			return parseItauChecking(lines);
+		case "ITAU_CREDIT":
+			return parseItauCredit(lines);
+		default:
+			throw new Error(`Formato desconhecido: ${source}`);
+	}
+}
 
-	// Detect format: simplified (3 fields) or complete (6+ fields)
-	const isSimplifiedFormat = headers.length === 3 &&
-		(headers.includes('data') || headers.includes('date')) &&
-		(headers.includes('lançamento') || headers.includes('lancamento') || headers.includes('descrição') || headers.includes('descricao') || headers.includes('description')) &&
-		(headers.includes('valor') || headers.includes('value') || headers.includes('amount'));
+// ============================================================================
+// PARSER 1: Nubank - Checking Account (Extrato)
+// Format: Data,Valor,Identificador,Descrição
+// Date: DD/MM/YYYY
+// Amount: Uses . for decimals, negative = expense
+// ============================================================================
 
-	// Parse data rows
+function parseNubankChecking(lines: string[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
+	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
+
+	// Validate expected format
+	if (!headers.includes("data") || !headers.includes("valor") || !headers.includes("descrição")) {
+		throw new Error("Formato Nubank Extrato inválido. Esperado: Data,Valor,Identificador,Descrição");
+	}
 
 	for (let i = 1; i < lines.length; i++) {
 		const line = lines[i].trim();
-		if (!line) continue; // Skip empty lines
+		if (!line) continue;
 
-		const values = parseCSVLine(line);
+		const values = parseCSVLine(line, ",");
+		if (values.length < 4) continue;
 
-		if (isSimplifiedFormat) {
-			// Simplified format: data, lançamento, valor
-			// All transactions are EXPENSES from CREDIT_CARD by default
-			// User will edit later to categorize
-			try {
-				const dateValue = values[0] || new Date().toISOString().split('T')[0];
-				const description = values[1] || `Transação ${i}`;
-				const amountStr = values[2] || '0';
+		const dateStr = values[0] || "";
+		const amountStr = values[1] || "";
+		const description = values[3] || `Transação ${i}`;
 
-				// Parse amount (handle both comma and dot as decimal separator)
-				const amount = Math.abs(parseFloat(amountStr.replace(',', '.'))) || 0;
+		try {
+			// Parse date DD/MM/YYYY -> YYYY-MM-DD
+			const date = parseBrazilianDate(dateStr);
 
-				transactions.push({
-					userId: 'blanchimaah',
-					description: description.trim(),
-					amount: amount.toString(),
-					type: 'expense', // Default to expense (credit card bill)
-					category: 'A Categorizar', // User will categorize later
-					origin: 'CREDIT_CARD', // Default to credit card
-					date: dateValue,
-					card: cardName || undefined, // Use provided card name or undefined
-				});
-			} catch (error) {
-				console.error(`Erro ao processar linha ${i + 1}:`, error);
-				throw new Error(`Erro na linha ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+			// Parse amount (dot as decimal, no thousands separator in Nubank checking)
+			const amount = parseFloat(amountStr.trim());
+
+			// Skip invalid amounts
+			if (isNaN(amount) || amount === 0) {
+				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
+				continue;
 			}
-		} else {
-			// Complete format: validate all required columns
-			const row: Record<string, string> = {};
-			headers.forEach((header, index) => {
-				row[header] = values[index] || '';
+
+			// Determine type based on sign BEFORE converting to absolute
+			const type = amount < 0 ? "expense" : "income";
+
+			// Convert to absolute value (backend expects positive numbers)
+			const absoluteAmount = Math.abs(amount);
+
+			transactions.push({
+				userId: "blanchimaah",
+				description: description.trim(),
+				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				type: type,
+				category: predictCategory(description),  // Auto-categorize based on description
+				origin: "CASH",
+				date: date,
+				card: undefined,
 			});
-
-			// Map common header variations
-			const description = row['descrição'] || row['descricao'] || row['description'] || row['lançamento'] || row['lancamento'];
-			const valor = row['valor'] || row['value'] || row['amount'];
-			const tipo = row['tipo'] || row['type'];
-			const categoria = row['categoria'] || row['category'];
-			const origem = row['origem'] || row['origin'];
-			const data = row['data'] || row['date'];
-			const cartao = row['cartão'] || row['cartao'] || row['card'];
-
-			// Validate required fields
-			if (!description || !valor || !tipo || !categoria || !origem || !data) {
-				throw new Error(`Dados incompletos na linha ${i + 1}`);
-			}
-
-			// Validate and create transaction payload
-			try {
-				const type = tipo.toLowerCase();
-				if (type !== 'income' && type !== 'expense') {
-					throw new Error(`Tipo inválido na linha ${i + 1}: ${tipo}`);
-				}
-
-				const origin = origem.toUpperCase();
-				if (origin !== 'CREDIT_CARD' && origin !== 'CASH') {
-					throw new Error(`Origem inválida na linha ${i + 1}: ${origem}`);
-				}
-
-				transactions.push({
-					userId: 'blanchimaah',
-					description: description || `Transação ${i}`,
-					amount: parseFloat(valor.replace(',', '.')) || 0,
-					type: type as 'income' | 'expense',
-					category: categoria || 'Outros',
-					origin: origin as 'CREDIT_CARD' | 'CASH',
-					date: data || new Date().toISOString(),
-					card: cartao || undefined,
-				});
-			} catch (error) {
-				console.error(`Erro ao processar linha ${i + 1}:`, error);
-				throw new Error(`Erro na linha ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-			}
+		} catch (error) {
+			console.error(`Erro na linha ${i + 1}:`, error);
+			continue;
 		}
 	}
 
 	return transactions;
 }
 
-function parseCSVLine(line: string): string[] {
+// ============================================================================
+// PARSER 2: Itau - Checking Account (Extrato)
+// Format: Data;Descricao;Valor
+// Date: DD/MM/YYYY
+// Amount: Uses , for decimals (Brazilian format)
+// ============================================================================
+
+function parseItauChecking(lines: string[]): CreateTransactionPayload[] {
+	const transactions: CreateTransactionPayload[] = [];
+	const headers = parseCSVLine(lines[0], ";").map((h) => h.toLowerCase());
+
+	// Validate expected format
+	if (!headers.includes("data") || !headers.includes("descricao") || !headers.includes("valor")) {
+		throw new Error("Formato Itaú Extrato inválido. Esperado: Data;Descricao;Valor");
+	}
+
+	for (let i = 1; i < lines.length; i++) {
+		const line = lines[i].trim();
+		if (!line) continue;
+
+		const values = parseCSVLine(line, ";");
+		if (values.length < 3) continue;
+
+		const dateStr = values[0] || "";
+		const description = values[1] || `Transação ${i}`;
+		const amountStr = values[2] || "";
+
+		try {
+			// Parse date DD/MM/YYYY -> YYYY-MM-DD
+			const date = parseBrazilianDate(dateStr);
+
+			// Parse amount - Brazilian format (comma as decimal, may have dot as thousands)
+			const cleanAmount = amountStr.trim().replace(/\./g, "").replace(",", ".");
+			const amount = parseFloat(cleanAmount);
+
+			// Skip invalid amounts
+			if (isNaN(amount) || amount === 0) {
+				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
+				continue;
+			}
+
+			// Determine type based on sign BEFORE converting to absolute
+			const type = amount < 0 ? "expense" : "income";
+
+			// Convert to absolute value (backend expects positive numbers)
+			const absoluteAmount = Math.abs(amount);
+
+			transactions.push({
+				userId: "blanchimaah",
+				description: description.trim(),
+				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				type: type,
+				category: predictCategory(description),  // Auto-categorize based on description
+				origin: "CASH",
+				date: date,
+				card: undefined,
+			});
+		} catch (error) {
+			console.error(`Erro na linha ${i + 1}:`, error);
+			continue;
+		}
+	}
+
+	return transactions;
+}
+
+// ============================================================================
+// PARSER 3: Nubank - Credit Card (Fatura)
+// Format: date,title,amount
+// Date: YYYY-MM-DD (ISO format)
+// Amount: Uses . for decimals, POSITIVE but they are expenses!
+// ============================================================================
+
+function parseNubankCredit(lines: string[]): CreateTransactionPayload[] {
+	const transactions: CreateTransactionPayload[] = [];
+	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
+
+	// Validate expected format
+	if (!headers.includes("date") || !headers.includes("title") || !headers.includes("amount")) {
+		throw new Error("Formato Nubank Fatura inválido. Esperado: date,title,amount");
+	}
+
+	for (let i = 1; i < lines.length; i++) {
+		const line = lines[i].trim();
+		if (!line) continue;
+
+		const values = parseCSVLine(line, ",");
+		if (values.length < 3) continue;
+
+		const dateStr = values[0] || "";
+		const description = values[1] || `Transação ${i}`;
+		const amountStr = values[2] || "";
+
+		try {
+			// Date is already in YYYY-MM-DD format
+			const date = dateStr.trim();
+
+			// Parse amount (dot as decimal)
+			const amount = parseFloat(amountStr.trim());
+
+			// Skip invalid amounts
+			if (isNaN(amount) || amount === 0) {
+				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
+				continue;
+			}
+
+			// Credit card purchases are always expenses
+			// Convert to absolute value (backend expects positive numbers)
+			const absoluteAmount = Math.abs(amount);
+
+			transactions.push({
+				userId: "blanchimaah",
+				description: description.trim(),
+				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				type: "expense",
+				category: predictCategory(description),  // Auto-categorize based on description
+				origin: "CREDIT_CARD",
+				date: date,
+				card: "Nubank",
+			});
+		} catch (error) {
+			console.error(`Erro na linha ${i + 1}:`, error);
+			continue;
+		}
+	}
+
+	return transactions;
+}
+
+// ============================================================================
+// PARSER 4: Itau - Credit Card (Fatura)
+// Format: data,lançamento,valor
+// Date: YYYY-MM-DD (ISO format)
+// Amount: Uses . for decimals
+// ============================================================================
+
+function parseItauCredit(lines: string[]): CreateTransactionPayload[] {
+	const transactions: CreateTransactionPayload[] = [];
+	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
+
+	// Validate expected format
+	if (!headers.includes("data") || !headers.includes("lançamento") || !headers.includes("valor")) {
+		throw new Error("Formato Itaú Fatura inválido. Esperado: data,lançamento,valor");
+	}
+
+	for (let i = 1; i < lines.length; i++) {
+		const line = lines[i].trim();
+		if (!line) continue;
+
+		const values = parseCSVLine(line, ",");
+		if (values.length < 3) continue;
+
+		const dateStr = values[0] || "";
+		const description = values[1] || `Transação ${i}`;
+		const amountStr = values[2] || "";
+
+		try {
+			// Date is already in YYYY-MM-DD format
+			const date = dateStr.trim();
+
+			// Parse amount (dot as decimal)
+			const amount = parseFloat(amountStr.trim());
+
+			// Skip invalid amounts
+			if (isNaN(amount) || amount === 0) {
+				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
+				continue;
+			}
+
+			// Credit card purchases are always expenses
+			// Convert to absolute value (backend expects positive numbers)
+			const absoluteAmount = Math.abs(amount);
+
+			transactions.push({
+				userId: "blanchimaah",
+				description: description.trim(),
+				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				type: "expense",
+				category: predictCategory(description),  // Auto-categorize based on description
+				origin: "CREDIT_CARD",
+				date: date,
+				card: "Itaú",
+			});
+		} catch (error) {
+			console.error(`Erro na linha ${i + 1}:`, error);
+			continue;
+		}
+	}
+
+	return transactions;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Parse Brazilian date format DD/MM/YYYY to YYYY-MM-DD
+ */
+function parseBrazilianDate(dateStr: string): string {
+	const parts = dateStr.trim().split("/");
+	if (parts.length === 3) {
+		return `${parts[2]}-${parts[1]}-${parts[0]}`;
+	}
+	return new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Parse CSV line respecting quoted fields
+ */
+function parseCSVLine(line: string, delimiter = ","): string[] {
 	const result: string[] = [];
-	let current = '';
+	let current = "";
 	let inQuotes = false;
 
 	for (let i = 0; i < line.length; i++) {
 		const char = line[i];
 
 		if (char === '"') {
-			// Check for escaped quote
 			if (inQuotes && line[i + 1] === '"') {
 				current += '"';
-				i++; // Skip next quote
+				i++;
 			} else {
 				inQuotes = !inQuotes;
 			}
-		} else if (char === ',' && !inQuotes) {
+		} else if (char === delimiter && !inQuotes) {
 			result.push(current.trim());
-			current = '';
+			current = "";
 		} else {
 			current += char;
 		}
@@ -196,43 +384,36 @@ function parseCSVLine(line: string): string[] {
 	return result;
 }
 
+// ============================================================================
+// DOWNLOAD CSV TEMPLATE
+// ============================================================================
+
 export function downloadCSVTemplate(): void {
-	// Simplified template (3 fields - for credit card statements)
-	const simplifiedHeaders = ['data', 'lançamento', 'valor'];
-	const simplifiedExample1 = ['2025-11-12', 'MP *NOVAPOINT', '31'];
-	const simplifiedExample2 = ['2025-11-11', 'UBER* TRIP', '50.71'];
-
-	// Complete template (all fields)
-	const completeHeaders = ['Data', 'Descrição', 'Valor', 'Tipo', 'Categoria', 'Origem', 'Cartão'];
-	const completeExample = [
-		new Date().toISOString().split('T')[0],
-		'Exemplo de transação',
-		'100.00',
-		'expense',
-		'Alimentação',
-		'CASH',
-		'',
-	];
-
-	// Create content with both templates separated by blank lines
 	const csvContent = [
-		'# FORMATO SIMPLIFICADO (Fatura de Cartão)',
-		simplifiedHeaders.join(','),
-		simplifiedExample1.join(','),
-		simplifiedExample2.join(','),
-		'',
-		'# FORMATO COMPLETO (Importação Manual)',
-		completeHeaders.join(','),
-		completeExample.join(','),
-	].join('\n');
+		"# NUBANK - EXTRATO (Conta Corrente)",
+		"Data,Valor,Identificador,Descrição",
+		"01/08/2025,-20.00,UUID123,Compra no débito - Supermercado",
+		"",
+		"# ITAÚ - EXTRATO (Conta Corrente)",
+		"Data;Descricao;Valor",
+		"05/06/2025;Pagamento Conta;-28,76",
+		"",
+		"# NUBANK - FATURA (Cartão de Crédito)",
+		"date,title,amount",
+		"2025-06-14,Apple.Com/Bill,39.90",
+		"",
+		"# ITAÚ - FATURA (Cartão de Crédito)",
+		"data,lançamento,valor",
+		"2025-11-12,MP *NOVAPOINT,31",
+	].join("\n");
 
-	const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-	const link = document.createElement('a');
+	const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+	const link = document.createElement("a");
 	const url = URL.createObjectURL(blob);
 
-	link.setAttribute('href', url);
-	link.setAttribute('download', 'modelo_importacao.csv');
-	link.style.visibility = 'hidden';
+	link.setAttribute("href", url);
+	link.setAttribute("download", "modelo_importacao.csv");
+	link.style.visibility = "hidden";
 
 	document.body.appendChild(link);
 	link.click();

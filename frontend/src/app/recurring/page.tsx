@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { RecurringTransaction, RecurringFrequency } from "@/types/recurring";
 import {
 	getRecurringTransactions,
@@ -17,14 +17,14 @@ export default function RecurringPage() {
 
 	const userId = "blanchimaah";
 
-	useEffect(() => {
-		loadRecurring();
-	}, []);
-
-	const loadRecurring = () => {
+	const loadRecurring = useCallback(() => {
 		const data = getRecurringTransactions();
 		setRecurring(data);
-	};
+	}, []);
+
+	useEffect(() => {
+		loadRecurring();
+	}, [loadRecurring]);
 
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
@@ -76,7 +76,7 @@ export default function RecurringPage() {
 				origin: rec.origin,
 				category: rec.category,
 				card: rec.card && rec.card.trim() !== "" ? rec.card : undefined,
-				date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+				date: new Date().toISOString().split("T")[0], // YYYY-MM-DD format
 			});
 
 			alert("Transação gerada com sucesso!");
@@ -115,8 +115,7 @@ export default function RecurringPage() {
 								Transações Recorrentes
 							</h1>
 							<p className="mt-2 text-gray-600 dark:text-gray-400">
-								Gerencie contas mensais, salário e outras transações que se
-								repetem
+								Gerencie contas mensais, salário e outras transações que se repetem
 							</p>
 						</div>
 						<button
@@ -143,20 +142,10 @@ export default function RecurringPage() {
 								<div className="flex items-start justify-between mb-4">
 									<div className="flex-1">
 										<div className="flex items-center gap-2 mb-1">
-											<span className="text-2xl">
-												{rec.type === "income" ? "📈" : "📉"}
-											</span>
-											<h3 className="font-semibold text-gray-900 dark:text-gray-100">
-												{rec.description}
-											</h3>
+											<span className="text-2xl">{rec.type === "income" ? "📈" : "📉"}</span>
+											<h3 className="font-semibold text-gray-900 dark:text-gray-100">{rec.description}</h3>
 										</div>
-										<p
-											className={`text-2xl font-bold ${
-												rec.type === "income"
-													? "text-green-600"
-													: "text-red-600"
-											}`}
-										>
+										<p className={`text-2xl font-bold ${rec.type === "income" ? "text-green-600" : "text-red-600"}`}>
 											{rec.type === "income" ? "+" : "-"}
 											{formatCurrency(rec.amount)}
 										</p>
@@ -184,39 +173,25 @@ export default function RecurringPage() {
 
 								<div className="space-y-2 text-sm mb-4">
 									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Categoria:
-										</span>
-										<span className="font-medium text-gray-900 dark:text-gray-100">
-											{rec.category}
-										</span>
+										<span className="text-gray-600 dark:text-gray-400">Categoria:</span>
+										<span className="font-medium text-gray-900 dark:text-gray-100">{rec.category}</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Frequência:
-										</span>
+										<span className="text-gray-600 dark:text-gray-400">Frequência:</span>
 										<span className="font-medium text-gray-900 dark:text-gray-100">
 											{getFrequencyLabel(rec.frequency)}
 										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-gray-600 dark:text-gray-400">
-											Origem:
-										</span>
+										<span className="text-gray-600 dark:text-gray-400">Origem:</span>
 										<span className="font-medium text-gray-900 dark:text-gray-100">
-											{rec.origin === "CREDIT_CARD"
-												? "Cartão de Crédito"
-												: "Dinheiro"}
+											{rec.origin === "CREDIT_CARD" ? "Cartão de Crédito" : "Dinheiro"}
 										</span>
 									</div>
 									{rec.card && (
 										<div className="flex justify-between">
-											<span className="text-gray-600 dark:text-gray-400">
-												Cartão:
-											</span>
-											<span className="font-medium text-gray-900 dark:text-gray-100">
-												{rec.card}
-											</span>
+											<span className="text-gray-600 dark:text-gray-400">Cartão:</span>
+											<span className="font-medium text-gray-900 dark:text-gray-100">{rec.card}</span>
 										</div>
 									)}
 								</div>
@@ -226,9 +201,7 @@ export default function RecurringPage() {
 									disabled={!rec.isActive || generating === rec.id}
 									className="w-full py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
 								>
-									{generating === rec.id
-										? "Gerando..."
-										: "Gerar Transação Agora"}
+									{generating === rec.id ? "Gerando..." : "Gerar Transação Agora"}
 								</button>
 							</div>
 						))}
@@ -236,12 +209,9 @@ export default function RecurringPage() {
 				) : (
 					<div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
 						<span className="text-6xl mb-4 block">🔄</span>
-						<p className="text-gray-500 dark:text-gray-400 mb-4 text-lg">
-							Nenhuma transação recorrente cadastrada
-						</p>
+						<p className="text-gray-500 dark:text-gray-400 mb-4 text-lg">Nenhuma transação recorrente cadastrada</p>
 						<p className="text-gray-400 dark:text-gray-500 mb-6 max-w-md mx-auto">
-							Cadastre contas mensais, salário e outras transações que se
-							repetem para facilitar seu controle financeiro
+							Cadastre contas mensais, salário e outras transações que se repetem para facilitar seu controle financeiro
 						</p>
 						<button
 							onClick={() => setShowModal(true)}
@@ -257,15 +227,11 @@ export default function RecurringPage() {
 			{showModal && (
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
 					<div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-2xl w-full p-6 my-8">
-						<h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
-							Nova Transação Recorrente
-						</h3>
+						<h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Nova Transação Recorrente</h3>
 						<form onSubmit={handleCreate} className="space-y-4">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div className="md:col-span-2">
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Descrição
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição</label>
 									<input
 										type="text"
 										name="description"
@@ -276,9 +242,7 @@ export default function RecurringPage() {
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Valor (R$)
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Valor (R$)</label>
 									<input
 										type="number"
 										name="amount"
@@ -291,9 +255,7 @@ export default function RecurringPage() {
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Tipo
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo</label>
 									<select
 										name="type"
 										required
@@ -305,9 +267,7 @@ export default function RecurringPage() {
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Categoria
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
 									<input
 										type="text"
 										name="category"
@@ -318,9 +278,7 @@ export default function RecurringPage() {
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Frequência
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frequência</label>
 									<select
 										name="frequency"
 										required
@@ -334,9 +292,7 @@ export default function RecurringPage() {
 								</div>
 
 								<div>
-									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-										Origem
-									</label>
+									<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origem</label>
 									<select
 										name="origin"
 										required
