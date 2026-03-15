@@ -5,5 +5,11 @@
   "scripts": {
     "dev": "cd backend && npm run dev",
     "start": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "baseline-browser-mapping": "^2.9.19",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.6"
   }
 }

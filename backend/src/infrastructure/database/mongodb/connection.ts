@@ -1,6 +1,9 @@
 import mongoose from 'mongoose'
+import { TransactionMongooseModel } from './models/TransactionModel'
+import { CategoryModel } from './models/CategoryModel'
 
 let isConnected = false
+let indexesSynced = false
 
 export async function connectMongo (): Promise<typeof mongoose> {
   if (isConnected) return mongoose
@@ -20,5 +23,18 @@ export async function connectMongo (): Promise<typeof mongoose> {
 
   isConnected = true
   console.log('[MongoDB] Conectado')
+
+  // Sync indexes once (creates new indexes like the idempotency unique constraint)
+  if (!indexesSynced) {
+    try {
+      await TransactionMongooseModel.syncIndexes()
+      await CategoryModel.syncIndexes()
+      indexesSynced = true
+      console.log('[MongoDB] Indexes synced successfully')
+    } catch (err) {
+      console.error('[MongoDB] Index sync FAILED:', err)
+    }
+  }
+
   return mongoose
 }

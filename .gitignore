@@ -5,3 +5,7 @@ node_modules/
 *.log
 dist/
 coverage/
+
+# Claude Code agents/skills
+.agents/
+skills-lock.json

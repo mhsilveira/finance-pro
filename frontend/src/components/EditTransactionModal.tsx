@@ -8,7 +8,8 @@ import type { Transaction } from "../types/transaction";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select } from "./ui/select";
-import { useUpdateTransaction } from "@/hooks/useTransactions";
+import { useUpdateTransaction, useCategories } from "@/hooks/useTransactions";
+import { saveCategoryCorrection } from "@/services/api";
 
 interface EditTransactionModalProps {
 	transaction: Transaction;
@@ -27,6 +28,7 @@ export function EditTransactionModal({
 }: EditTransactionModalProps) {
 	const [error, setError] = useState("");
 	const updateMutation = useUpdateTransaction();
+	const { data: backendCategories = [] } = useCategories();
 
 	const [formData, setFormData] = useState<Omit<CreateTransactionPayload, "userId">>({
 		description: transaction.description,
@@ -67,6 +69,13 @@ export function EditTransactionModal({
 			};
 
 			await updateMutation.mutateAsync({ id: transaction.id, userId, payload });
+
+			// Save category correction if the user changed the category
+			if (formData.category !== transaction.category && formData.description) {
+				saveCategoryCorrection(userId, formData.description, formData.category).catch((err) =>
+					console.warn("Failed to save category correction:", err),
+				);
+			}
 
 			onOpenChange(false);
 			onSuccess?.();
@@ -203,11 +212,20 @@ export function EditTransactionModal({
 								value={formData.category || ""}
 								onChange={(e) => handleChange("category", e.target.value)}
 							>
-								{Object.entries(CATEGORIES).map(([key, label]) => (
-									<option key={key} value={label}>
-										{label}
-									</option>
-								))}
+								{backendCategories.length > 0
+									? backendCategories
+										.filter((cat) => cat.type === formData.type || cat.type === "both")
+										.map((cat) => (
+											<option key={cat.key} value={cat.name}>
+												{cat.icon ? `${cat.icon} ` : ""}{cat.name}
+											</option>
+										))
+									: Object.entries(CATEGORIES).map(([key, label]) => (
+										<option key={key} value={label}>
+											{label}
+										</option>
+									))
+								}
 							</Select>
 						</div>
 

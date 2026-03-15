@@ -2,6 +2,8 @@ import '../../bootstrap'
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import { connectMongo } from '@infrastructure/database/mongodb/connection'
 import { TransactionRepository } from '@infrastructure/database/mongodb/repositories/TransactionRepository'
+import { CategoryCorrectionRepository } from '@infrastructure/database/mongodb/repositories/CategoryCorrectionRepository'
+import { CategoryRepository } from '@infrastructure/database/mongodb/repositories/CategoryRepository'
 import { ReprocessCategories } from '@domain/use-cases/ReprocessCategories'
 import { json } from '@infrastructure/http/httpResponse'
 
@@ -17,12 +19,26 @@ export const handler = async (
       return json(400, { error: 'userId is required' })
     }
 
-    // Initialize use case
+    // Initialize repositories and use case
     const transactionRepository = new TransactionRepository()
+    const correctionRepository = new CategoryCorrectionRepository()
+    const categoryRepository = new CategoryRepository()
     const reprocessUseCase = new ReprocessCategories(transactionRepository)
 
-    // Execute reprocessing
-    const result = await reprocessUseCase.execute(userId)
+    // Fetch user corrections and category rules from DB
+    const [corrections, categories] = await Promise.all([
+      correctionRepository.findByUserId(userId),
+      categoryRepository.findAll()
+    ])
+
+    const categoryRules = categories.map(c => ({
+      name: c.name,
+      keywords: c.keywords || [],
+      sortOrder: c.sortOrder ?? 100
+    }))
+
+    // Execute reprocessing with corrections and DB rules
+    const result = await reprocessUseCase.execute(userId, corrections, categoryRules)
 
     return json(200, {
       message: 'Categories reprocessed successfully',

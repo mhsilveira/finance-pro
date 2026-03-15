@@ -1,6 +1,7 @@
 // services/csv.ts
-import type { Transaction, CreateTransactionPayload } from "../types/transaction";
+import type { Transaction, CreateTransactionPayload, Category } from "../types/transaction";
 import type { CSVSource } from "../components/ImportCSVModal";
+import type { CategoryCorrection } from "@/services/api";
 import { predictCategory } from "@/lib/categoryPredictor";
 
 // ============================================================================
@@ -60,7 +61,7 @@ export function exportTransactionsToCSV(transactions: Transaction[]): void {
 // IMPORT FROM CSV - MAIN FUNCTION
 // ============================================================================
 
-export function parseCSV(csvText: string, source: CSVSource): CreateTransactionPayload[] {
+export function parseCSV(csvText: string, source: CSVSource, corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const lines = csvText.trim().split("\n");
 
 	if (lines.length < 2) {
@@ -70,13 +71,13 @@ export function parseCSV(csvText: string, source: CSVSource): CreateTransactionP
 	// Route to appropriate parser based on source
 	switch (source) {
 		case "NUBANK_CHECKING":
-			return parseNubankChecking(lines);
+			return parseNubankChecking(lines, corrections, categories);
 		case "NUBANK_CREDIT":
-			return parseNubankCredit(lines);
+			return parseNubankCredit(lines, corrections, categories);
 		case "ITAU_CHECKING":
-			return parseItauChecking(lines);
+			return parseItauChecking(lines, corrections, categories);
 		case "ITAU_CREDIT":
-			return parseItauCredit(lines);
+			return parseItauCredit(lines, corrections, categories);
 		default:
 			throw new Error(`Formato desconhecido: ${source}`);
 	}
@@ -89,7 +90,7 @@ export function parseCSV(csvText: string, source: CSVSource): CreateTransactionP
 // Amount: Uses . for decimals, negative = expense
 // ============================================================================
 
-function parseNubankChecking(lines: string[]): CreateTransactionPayload[] {
+function parseNubankChecking(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
@@ -133,7 +134,7 @@ function parseNubankChecking(lines: string[]): CreateTransactionPayload[] {
 				description: description.trim(),
 				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
 				type: type,
-				category: predictCategory(description),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
 				origin: "CASH",
 				date: date,
 				card: undefined,
@@ -154,7 +155,7 @@ function parseNubankChecking(lines: string[]): CreateTransactionPayload[] {
 // Amount: Uses , for decimals (Brazilian format)
 // ============================================================================
 
-function parseItauChecking(lines: string[]): CreateTransactionPayload[] {
+function parseItauChecking(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ";").map((h) => h.toLowerCase());
 
@@ -199,7 +200,7 @@ function parseItauChecking(lines: string[]): CreateTransactionPayload[] {
 				description: description.trim(),
 				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
 				type: type,
-				category: predictCategory(description),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
 				origin: "CASH",
 				date: date,
 				card: undefined,
@@ -220,7 +221,7 @@ function parseItauChecking(lines: string[]): CreateTransactionPayload[] {
 // Amount: Uses . for decimals, POSITIVE but they are expenses!
 // ============================================================================
 
-function parseNubankCredit(lines: string[]): CreateTransactionPayload[] {
+function parseNubankCredit(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
@@ -262,7 +263,7 @@ function parseNubankCredit(lines: string[]): CreateTransactionPayload[] {
 				description: description.trim(),
 				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
 				type: "expense",
-				category: predictCategory(description),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
 				origin: "CREDIT_CARD",
 				date: date,
 				card: "Nubank",
@@ -283,7 +284,7 @@ function parseNubankCredit(lines: string[]): CreateTransactionPayload[] {
 // Amount: Uses . for decimals
 // ============================================================================
 
-function parseItauCredit(lines: string[]): CreateTransactionPayload[] {
+function parseItauCredit(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
@@ -325,7 +326,7 @@ function parseItauCredit(lines: string[]): CreateTransactionPayload[] {
 				description: description.trim(),
 				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
 				type: "expense",
-				category: predictCategory(description),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
 				origin: "CREDIT_CARD",
 				date: date,
 				card: "Itaú",

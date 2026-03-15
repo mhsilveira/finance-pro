@@ -1,5 +1,16 @@
 import type { ITransactionRepository } from '../repositories/ITransactionRepository'
 
+interface CategoryCorrection {
+  descriptionPattern: string
+  category: string
+}
+
+interface CategoryRule {
+  name: string
+  keywords: string[]
+  sortOrder: number
+}
+
 interface ReprocessResult {
   total: number
   updated: number
@@ -11,24 +22,35 @@ export class ReprocessCategories {
     private readonly transactionRepository: ITransactionRepository
   ) {}
 
-  async execute (userId: string): Promise<ReprocessResult> {
+  async execute (
+    userId: string,
+    corrections?: CategoryCorrection[],
+    categoryRules?: CategoryRule[]
+  ): Promise<ReprocessResult> {
     const transactions = await this.transactionRepository.findByUserId(userId)
 
-    let updated = 0
+    // Build list of updates needed (in memory, no DB calls yet)
+    const updates: Array<{ id: string; category: string }> = []
     let unchanged = 0
 
     for (const transaction of transactions) {
-      const predictedCategory = this.predictCategory(transaction.description || '')
+      const predictedCategory = predictCategory(
+        transaction.description || '',
+        corrections,
+        categoryRules
+      )
 
       if (predictedCategory !== transaction.category) {
-        transaction.category = predictedCategory
-        await this.transactionRepository.update(transaction.id, {
-          category: predictedCategory
-        })
-        updated++
+        updates.push({ id: transaction.id, category: predictedCategory })
       } else {
         unchanged++
       }
+    }
+
+    // Single bulkWrite instead of N individual updates
+    let updated = 0
+    if (updates.length > 0) {
+      updated = await this.transactionRepository.bulkUpdateCategories(updates)
     }
 
     return {
@@ -37,84 +59,64 @@ export class ReprocessCategories {
       unchanged
     }
   }
+}
 
-  /**
-   * Predicts the category of a transaction based on its description
-   * This is a simplified version matching the frontend logic
-   */
-  private predictCategory (description: string): string {
-    if (!description || description.trim().length === 0) {
-      return 'Outros'
-    }
-
-    const normalized = description
-      .toUpperCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-
-    // Transporte
-    if (
-      /UBER|99|TAXI|POSTO|IPIRANGA|SHELL|AUTO|COMBUSTIVEL|GASOLINA|ETANOL|PEDAGIO|ESTACIONAMENTO|ONIBUS|METRO|BUS/.test(
-        normalized
-      )
-    ) {
-      return 'Transporte'
-    }
-
-    // Alimentação
-    if (
-      /IFOOD|RAPPI|EATS|MC ?DONALDS|BURGUER|BURGER KING|PADARIA|MERCADO|ATACADAO|ASSAI|CARREFOUR|PAO DE ACUCAR|EXTRA|BIG|RESTAURANTE|LANCHONETE|PIZZARIA|PIZZA|CAFE|BAR|LANCHES|FOOD|SUPERMERC/.test(
-        normalized
-      )
-    ) {
-      return 'Alimentação'
-    }
-
-    // Lazer
-    if (
-      /NETFLIX|SPOTIFY|PRIME|HBO|DISNEY|AMAZON PRIME|YOUTUBE|APPLE\.COM|APPLE MUSIC|DEEZER|CINEMA|INGRESSO|TEATRO|SHOW|PARQUE/.test(
-        normalized
-      )
-    ) {
-      return 'Lazer'
-    }
-
-    // Contas
-    if (
-      /ENERGIA|LUZ|CELPE|CEMIG|CPFL|AGUA|SANEAMENTO|INTERNET|TELEFONE|TIM|VIVO|CLARO|OI|SKY|NET|CONDOMINIO|ALUGUEL/.test(
-        normalized
-      )
-    ) {
-      return 'Contas'
-    }
-
-    // Saúde
-    if (
-      /FARMACIA|DROGARIA|DROGA|HOSPITAL|CLINICA|LABORATORIO|CONSULTA|MEDICO|DENTAL|ODONTO|UNIMED|AMIL|SULAMERICA/.test(
-        normalized
-      )
-    ) {
-      return 'Saúde'
-    }
-
-    // Educação
-    if (
-      /ESCOLA|FACULDADE|UNIVERSIDADE|CURSO|UDEMY|COURSERA|LIVRO|LIVRARIA|EDUCACAO|MATRICULA|MENSALIDADE/.test(
-        normalized
-      )
-    ) {
-      return 'Educação'
-    }
-
-    // Vestuário
-    if (
-      /RENNER|RIACHUELO|C&A|ZARA|SHEIN|NIKE|ADIDAS|ROUPA|CALCADO|SAPATO|TENIS|MODA/.test(
-        normalized
-      )
-    ) {
-      return 'Vestuário'
-    }
-
+/**
+ * Predicts the category of a transaction based on its description.
+ * Priority: user corrections > payment method skip > DB keyword rules > "Outros"
+ */
+export function predictCategory (
+  description: string,
+  corrections?: CategoryCorrection[],
+  categoryRules?: CategoryRule[]
+): string {
+  if (!description || description.trim().length === 0) {
     return 'Outros'
   }
+
+  const normalized = description
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  // Check user corrections first
+  if (corrections && corrections.length > 0) {
+    for (const correction of corrections) {
+      const normalizedPattern = correction.descriptionPattern
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+
+      if (normalized.includes(normalizedPattern)) {
+        return correction.category
+      }
+    }
+  }
+
+  // Skip payment method descriptions
+  if (/^(PIX|PAGAMENTO |PAGAMENTO|TRANSFERENCIA|TRANSFERÊNCIA)(\s|$)/.test(normalized)) {
+    return 'A Categorizar'
+  }
+
+  // Match against category keyword rules from DB (sorted by sortOrder)
+  if (categoryRules && categoryRules.length > 0) {
+    const sorted = [...categoryRules].sort((a, b) => (a.sortOrder ?? 100) - (b.sortOrder ?? 100))
+
+    for (const rule of sorted) {
+      if (!rule.keywords || rule.keywords.length === 0) continue
+
+      for (const keyword of rule.keywords) {
+        const normalizedKeyword = keyword
+          .toUpperCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+
+        if (normalized.includes(normalizedKeyword)) {
+          return rule.name
+        }
+      }
+    }
+  }
+
+  return 'Outros'
 }

@@ -39,3 +39,14 @@ export const CATEGORIES = {
 } as const;
 
 export type CategoryKey = keyof typeof CATEGORIES;
+
+export interface Category {
+	_id?: string;
+	key: string;
+	name: string;
+	type: "income" | "expense" | "both";
+	icon?: string;
+	color?: string;
+	keywords?: string[];
+	sortOrder?: number;
+}

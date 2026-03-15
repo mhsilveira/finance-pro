@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { ImportCSVModal, type CSVSource } from "@/components/ImportCSVModal";
 import { TransactionTable } from "@/components/TransactionTable";
 import { DevTools } from "@/components/DevTools";
+import { ManageCategoriesModal } from "@/components/ManageCategoriesModal";
 import type { Transaction } from "@/types/transaction";
 import { exportTransactionsToCSV, parseCSV } from "@/services/csv";
-import { reprocessCategories } from "@/services/api";
+import { reprocessCategories, getCategoryCorrections, batchCreateTransactions, getCategories } from "@/services/api";
 import {
 	Pagination,
 	PaginationContent,
@@ -26,7 +27,7 @@ import {
 	usePaginatedTransactions,
 	useAllTransactions,
 	useDeleteTransaction,
-	useCreateTransaction,
+	useTransactionStats,
 } from "@/hooks/useTransactions";
 import { usePersistedFilters } from "@/hooks/usePersistedFilters";
 
@@ -44,6 +45,9 @@ export default function TransactionsPage() {
 	// Reprocess state
 	const [reprocessing, setReprocessing] = useState(false);
 
+	// Manage categories modal state
+	const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+
 	// Persisted filters
 	const { filters, setFilters, resetFilters, hasActiveFilters, isLoaded } = usePersistedFilters();
 
@@ -58,13 +62,16 @@ export default function TransactionsPage() {
 	} = usePaginatedTransactions(userId, currentPage, filters.pageSize);
 	const { data: allTransactions = [], refetch: refetchAll } = useAllTransactions(userId);
 	const deleteMutation = useDeleteTransaction();
-	const createMutation = useCreateTransaction();
+	const { data: serverStats, refetch: refetchStats } = useTransactionStats(userId, {
+		monthFrom: filters.monthFrom || undefined,
+		monthTo: filters.monthTo || undefined,
+	});
 
 	const loading = isLoading || !isLoaded;
 	const error = queryError ? (queryError as Error).message : "";
 
 	const refetchTransactions = async () => {
-		await Promise.all([refetchPaginated(), refetchAll()]);
+		await Promise.all([refetchPaginated(), refetchAll(), refetchStats()]);
 	};
 
 	const handleDelete = async (id: string) => {
@@ -98,69 +105,48 @@ export default function TransactionsPage() {
 		try {
 			const text = await file.text();
 
-			// Parse CSV using the robust parser with source type
-			const newTransactions = parseCSV(text, source);
+			// Fetch user corrections and category rules for smarter categorization
+			const [corrections, categories] = await Promise.all([
+				getCategoryCorrections(userId).catch(() => undefined),
+				getCategories().catch(() => undefined),
+			]);
 
-			let successCount = 0;
-			let errorCount = 0;
-			const errors: Array<{ row: number; transaction: any; error: string }> = [];
+			// Parse CSV using the robust parser with source type, corrections, and DB categories
+			const newTransactions = parseCSV(text, source, corrections, categories);
 
-			console.log(`🔄 Starting import of ${newTransactions.length} transactions from ${source}...`);
+			console.log(`🔄 Starting batch import of ${newTransactions.length} transactions from ${source}...`);
 
-			for (let i = 0; i < newTransactions.length; i++) {
-				const transaction = newTransactions[i];
-				const rowNumber = i + 2; // +2 because of header row and 0-index
-
-				try {
-					await createMutation.mutateAsync(transaction);
-					successCount++;
-					console.log(`✅ Row ${rowNumber}: Successfully imported "${transaction.description}"`);
-				} catch (err) {
-					errorCount++;
-					const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
-
-					errors.push({
-						row: rowNumber,
-						transaction: transaction,
-						error: errorMessage,
-					});
-
-					// Detailed error logging to console
-					console.error(`❌ Row ${rowNumber}: FAILED to import`, {
-						description: transaction.description,
-						amount: transaction.amount,
-						type: transaction.type,
-						date: transaction.date,
-						error: errorMessage,
-						fullTransaction: transaction,
-					});
-				}
-			}
+			const result = await batchCreateTransactions(newTransactions);
 
 			// Summary logging
 			console.log("\n" + "=".repeat(70));
 			console.log(`📊 IMPORT SUMMARY`);
 			console.log("=".repeat(70));
-			console.log(`✅ Success: ${successCount} transactions`);
-			console.log(`❌ Failed: ${errorCount} transactions`);
+			console.log(`✅ Success: ${result.success} transactions`);
+			console.log(`🔁 Duplicates skipped: ${result.duplicates || 0} transactions`);
+			console.log(`❌ Failed: ${result.failed} transactions`);
 			console.log(`📁 Source: ${source}`);
 			console.log("=".repeat(70));
 
-			if (errors.length > 0) {
+			const dupsMsg = result.duplicates ? `\n${result.duplicates} duplicatas ignoradas.` : "";
+
+			if (result.failed > 0 && result.errors.length > 0) {
 				console.log("\n🔍 DETAILED ERROR LOG:");
 				console.table(
-					errors.map((e) => ({
-						Row: e.row,
-						Description: e.transaction.description,
-						Amount: e.transaction.amount,
-						Type: e.transaction.type,
+					result.errors.map((e) => ({
+						Index: e.index,
 						Error: e.error,
 					})),
 				);
 
-				// Offer to download error log
+				const errors = result.errors.map((e) => ({
+					row: e.index + 2,
+					transaction: newTransactions[e.index],
+					error: e.error,
+				}));
+
 				const shouldDownload = confirm(
-					`Importação concluída!\n${successCount} transações importadas.\n${errorCount} erros encontrados.\n\n` +
+					`Importação concluída!\n${result.success} transações importadas.${dupsMsg}\n${result.failed} erros encontrados.\n\n` +
 						`Deseja baixar o log de erros?`,
 				);
 
@@ -168,7 +154,7 @@ export default function TransactionsPage() {
 					downloadErrorLog(errors, source);
 				}
 			} else {
-				alert(`Importação concluída com sucesso!\n${successCount} transações importadas.`);
+				alert(`Importação concluída com sucesso!\n${result.success} transações importadas.${dupsMsg}`);
 			}
 
 			await refetchTransactions();
@@ -256,60 +242,47 @@ export default function TransactionsPage() {
 		}
 	};
 
-	// Apply filters to all transactions (for stats and export)
-	const filteredTransactions = allTransactions.filter((t) => {
-		// Search filter
-		if (filters.searchTerm && !t.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) {
-			return false;
+	// Use server-side stats when only month filters are active (no text/type/category/origin/card filters)
+	const hasClientFilters = !!(filters.searchTerm || filters.typeFilter !== "all" || filters.categoryFilter !== "all" || filters.originFilter !== "all" || filters.cardFilter !== "all");
+
+	// Memoize filtered transactions — only recompute when allTransactions or filters change
+	const filteredTransactions = useMemo(() => {
+		return allTransactions.filter((t) => {
+			if (filters.searchTerm && !t.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) return false;
+			if (filters.typeFilter !== "all" && t.type !== filters.typeFilter) return false;
+			if (filters.categoryFilter !== "all" && t.category !== filters.categoryFilter) return false;
+			if (filters.originFilter !== "all" && t.origin !== filters.originFilter) return false;
+			if (filters.cardFilter !== "all" && t.card !== filters.cardFilter) return false;
+			const transactionMonth = t.monthYear || t.date.substring(0, 7);
+			if (filters.monthFrom && transactionMonth < filters.monthFrom) return false;
+			if (filters.monthTo && transactionMonth > filters.monthTo) return false;
+			return true;
+		});
+	}, [allTransactions, filters.searchTerm, filters.typeFilter, filters.categoryFilter, filters.originFilter, filters.cardFilter, filters.monthFrom, filters.monthTo]);
+
+	// Memoize dropdown options — only recompute when allTransactions changes
+	const uniqueCategories = useMemo(
+		() => Array.from(new Set(allTransactions.map((t) => t.category).filter(Boolean))),
+		[allTransactions],
+	);
+	const uniqueCards = useMemo(
+		() => Array.from(new Set(allTransactions.map((t) => t.card).filter(Boolean))),
+		[allTransactions],
+	);
+
+	// Memoize stats — avoid 3x filter().reduce() on every render
+	const stats = useMemo(() => {
+		if (!hasClientFilters && serverStats) {
+			return { total: serverStats.totalCount, income: serverStats.income, expense: serverStats.expense };
 		}
-
-		// Type filter
-		if (filters.typeFilter !== "all" && t.type !== filters.typeFilter) {
-			return false;
+		let income = 0;
+		let expense = 0;
+		for (const t of filteredTransactions) {
+			if (t.type === "income") income += t.amount;
+			else expense += t.amount;
 		}
-
-		// Category filter
-		if (filters.categoryFilter !== "all" && t.category !== filters.categoryFilter) {
-			return false;
-		}
-
-		// Origin filter
-		if (filters.originFilter !== "all" && t.origin !== filters.originFilter) {
-			return false;
-		}
-
-		// Card filter
-		if (filters.cardFilter !== "all" && t.card !== filters.cardFilter) {
-			return false;
-		}
-
-		// Month range filter (YYYY-MM)
-		const transactionMonth = t.monthYear || t.date.substring(0, 7);
-		if (filters.monthFrom && transactionMonth < filters.monthFrom) {
-			return false;
-		}
-		if (filters.monthTo && transactionMonth > filters.monthTo) {
-			return false;
-		}
-
-		return true;
-	});
-
-	// Get unique categories and cards for filter dropdowns
-	const uniqueCategories = Array.from(new Set(allTransactions.map((t) => t.category).filter(Boolean)));
-	const uniqueCards = Array.from(new Set(allTransactions.map((t) => t.card).filter(Boolean)));
-
-	// Calcular estatísticas (using filtered transactions)
-	const income = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-
-	const expense = filteredTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
-
-	const stats = {
-		total: filteredTransactions.length,
-		income,
-		expense,
-		balance: income - expense,
-	};
+		return { total: filteredTransactions.length, income, expense };
+	}, [hasClientFilters, serverStats, filteredTransactions]);
 
 	// Transactions to display (either paginated or filtered)
 	const displayTransactions = hasActiveFilters ? filteredTransactions : paginatedData?.data || [];
@@ -361,6 +334,15 @@ export default function TransactionsPage() {
 							>
 								<span>🔄</span>
 								<span>{reprocessing ? "Reprocessando..." : "Reprocessar Categorias"}</span>
+							</Button>
+
+							<Button
+								onClick={() => setShowCategoriesModal(true)}
+								variant="outline"
+								className="hover:border-blue-500/50"
+							>
+								<span>🏷️</span>
+								<span>Categorias</span>
 							</Button>
 
 							<AddTransactionModal userId={userId} onSuccess={refetchTransactions} />
@@ -491,7 +473,7 @@ export default function TransactionsPage() {
 
 				{/* Stats Cards */}
 				{!loading && !error && allTransactions.length > 0 && (
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+					<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
 						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
 							<div className="flex items-center justify-between">
 								<div>
@@ -543,28 +525,7 @@ export default function TransactionsPage() {
 							</div>
 						</div>
 
-						<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
-							<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
-							<div className="relative flex items-center justify-between">
-								<div>
-									<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
-									<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-										{formatCurrency(stats.balance)}
-									</p>
-								</div>
-								<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-									<svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-								</div>
-							</div>
 						</div>
-					</div>
 				)}
 
 				{/* Loading state */}
@@ -749,6 +710,12 @@ export default function TransactionsPage() {
 				onClose={() => setShowImportModal(false)}
 				onImport={handleImport}
 				isImporting={importing}
+			/>
+
+			{/* Manage Categories Modal */}
+			<ManageCategoriesModal
+				open={showCategoriesModal}
+				onOpenChange={setShowCategoriesModal}
 			/>
 		</div>
 	);

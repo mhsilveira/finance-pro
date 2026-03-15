@@ -14,12 +14,20 @@ const TransactionSchema = new Schema(
     categoryName: { type: String, required: true }, // denormalizado
     date: { type: Date, required: true },
     monthYear: { type: String, required: true, index: true }, // 'YYYY-MM'
-    deletedAt: { type: Date, default: null }
+    deletedAt: { type: Date, default: null },
+    idempotencyKey: { type: String, default: null, index: true }
   },
   {
     timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
     collection: 'transactions'
   }
+)
+
+// Compound unique index for duplicate detection
+// Uses $type:'string' instead of $ne:null because MongoDB 8.0 does not support $ne in partialFilterExpression
+TransactionSchema.index(
+  { userId: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
 )
 
 // método helper para domain object (converte Decimal128 pra number/string)

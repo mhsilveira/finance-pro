@@ -1,190 +1,234 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working in this repository.
+Read this file completely before starting any task.
+
+---
 
 ## Project Overview
 
-Finance Pro is a full-stack personal finance management application with a Next.js 15 frontend and AWS Lambda serverless backend using Clean Architecture principles.
+**Finance Pro** — Full-stack personal finance SaaS.
+- **Frontend:** Next.js 15 (App Router, Turbopack, Tailwind CSS 4, Radix UI)
+- **Backend:** AWS Lambda + Serverless Framework, Clean Architecture, MongoDB/Mongoose
+- **Language:** TypeScript throughout
+
+---
+
+## Skills
+
+Before working on specific domains, always read the relevant skill file:
+
+| Task | Skill file |
+|---|---|
+| Any UI component, page, or layout | `.agents/skills/frontend-design/SKILL.md` |
+| Any React component, hook, or context | `.agents/skills/vercel-react-best-practices/SKILL.md` |
+| Any test — unit, integration, or component | `.agents/skills/javascript-testing-patterns/SKILLS.md` |
+
+> Read the skill file **before writing any code** for that domain. Do not skip this step.
+
+---
 
 ## Development Commands
 
 ### Running the Application
 ```bash
-# Start backend (from root)
-npm run dev                    # Runs serverless offline on http://localhost:3001
-
-# Start frontend (from root)
-npm start                      # Runs Next.js dev server on http://localhost:3000
-
-# Or from individual directories
+# Backend (port 3001)
+npm run dev               # from root
 cd backend && npm run dev
+
+# Frontend (port 3000)
+npm start                 # from root
 cd frontend && npm run dev
 ```
 
-### Backend Commands (from backend/ directory)
+### Backend
 ```bash
-npm run build                  # Compile TypeScript
-npm run dev                    # Serverless offline (port 3001)
-npm test                       # Run tests
-npm run lint                   # ESLint
-npm run deploy                 # Deploy to AWS dev stage
-npm run deploy:prod            # Deploy to AWS production
+cd backend
+npm run build             # Compile TypeScript
+npm run dev               # Serverless offline
+npm test                  # Run tests
+npm run lint              # ESLint
+npm run deploy            # Deploy to AWS dev
+npm run deploy:prod       # Deploy to AWS production
 ```
 
-### Frontend Commands (from frontend/ directory)
+### Frontend
 ```bash
-npm run dev                    # Next.js dev with Turbopack
-npm run build                  # Production build with Turbopack
-npm start                      # Production server
-npm run lint                   # Biome linting
-npm run format                 # Biome formatting
+cd frontend
+npm run dev               # Next.js dev with Turbopack
+npm run build             # Production build
+npm start                 # Production server
+npm run lint              # Biome linting
+npm run format            # Biome formatting
 ```
+
+---
 
 ## Architecture
 
-### Backend: Clean Architecture with Serverless
+### Backend: Clean Architecture
 
-The backend follows Clean Architecture with strict layer separation:
+Dependencies flow strictly inward. Never break this rule.
 
-**Domain Layer** (`@domain/*`)
-- Pure business logic, framework-agnostic
-- `entities/`: Core business entities (Transaction)
-- `repositories/`: Repository interfaces (ITransactionRepository)
-- `use-cases/`: Business logic (CreateTransaction, ListTransactions, etc.)
+```
+Interface (Lambda handlers)
+    └── Application (DTOs, validators)
+        └── Domain (entities, use cases, repository interfaces)  ← no external deps
+Infrastructure (MongoDB, HTTP) implements Domain interfaces
+```
 
-**Application Layer** (`@application/*`)
-- Application-specific logic
-- `dtos/`: Data transfer objects (CreateTransactionDTO, TransactionResponseDTO)
-- `validators/`: Zod validation schemas
+**Layer responsibilities:**
 
-**Infrastructure Layer** (`@infrastructure/*`)
-- External dependencies and implementations
-- `database/mongodb/`: MongoDB/Mongoose implementation
-  - `models/`: Mongoose schemas (TransactionModel, CategoryModel)
-  - `repositories/`: Repository implementations (TransactionRepository)
-  - `connection.ts`: Database connection logic
-- `http/`: HTTP utilities (httpResponse helpers)
+- **Domain** (`@domain/*`) — pure business logic, zero frameworks. Entities, use case interfaces, repository contracts.
+- **Application** (`@application/*`) — DTOs, Zod validation schemas.
+- **Infrastructure** (`@infrastructure/*`) — Mongoose models, repository implementations, HTTP helpers, DB connection.
+- **Interface** (`@interface/lambda/*`) — Lambda handlers. Must be thin: validate → call use case → return response.
+- **Shared** (`@shared/*`) — constants (categories), config (env), cross-cutting types.
 
-**Interface Layer** (`@interface/*`)
-- Entry points for the application
-- `lambda/`: AWS Lambda handlers (createTransaction.ts, getTransactions.ts, etc.)
+**Path aliases** are defined in `tsconfig.json` and resolved via `bootstrap.ts` using `module-alias`.
+`bootstrap.ts` **must be the first import** in every Lambda handler — no exceptions.
 
-**Shared** (`@shared/*`)
-- Cross-cutting concerns
-- `constants/`: Shared constants (categories.ts)
-- `config/`: Configuration (env.ts)
-- `types/`: Shared types
+### Frontend: Next.js 15 App Router
 
-**Key Architectural Points:**
-- Path aliases are configured in `tsconfig.json` and resolved via `bootstrap.ts` using `module-alias`
-- The `bootstrap.ts` file MUST be imported at the top of every Lambda handler to set up aliases and load environment variables
-- Dependencies flow inward: Domain has no dependencies, Application depends on Domain, Infrastructure depends on Application/Domain, Interface depends on all layers
-- All Lambda handlers follow the pattern: validate input → call use case → return HTTP response
-- Mongoose models are in Infrastructure, but domain entities remain database-agnostic
+```
+app/
+  dashboard/       # Financial overview with charts
+  transactions/    # Transaction management, filters, CSV
+  recurring/       # Recurring transactions
+  analytics/       # Analytics and insights
+  budget/          # Budget tracking and goals
+components/
+  ui/              # Reusable Radix UI components
+services/          # API clients: api.ts, recurring.ts, csv.ts
+types/             # TypeScript definitions
+```
 
-### Frontend: Next.js 15 with App Router
+**Key conventions:**
+- `"use client"` is required for any component using hooks, event handlers, or browser APIs
+- Data fetching via React Query (`@tanstack/react-query`) — no raw `fetch` in components
+- Charts via Chart.js + `react-chartjs-2`
+- Recurring transactions live in `localStorage` only — never sent to backend
+- Dark mode via Tailwind `dark:` classes, managed by `ThemeProvider` context
 
-**Structure:**
-- `app/`: Next.js App Router pages
-  - `dashboard/`: Financial overview with charts
-  - `transactions/`: Transaction management with filters/CSV
-  - `recurring/`: Recurring transactions management
-  - `analytics/`: Detailed analytics and insights
-  - `budget/`: Budget tracking and financial goals
-- `components/`: React components (Navbar, modals, tables)
-  - `ui/`: Reusable UI components (built with Radix UI)
-- `services/`: API clients (api.ts, recurring.ts, csv.ts)
-- `types/`: TypeScript type definitions
+---
 
-**Key Frontend Points:**
-- Uses `"use client"` directive for interactive components
-- React Query (@tanstack/react-query) for data fetching and caching
-- localStorage for local state (budgets, goals, recurring transactions)
-- Chart.js with react-chartjs-2 for data visualization
-- Radix UI components for accessibility
-- Tailwind CSS 4 with dark mode support (`dark:` classes)
-- API base URL configured via `NEXT_PUBLIC_API_BASE_URL` env var
+## Behavior Guidelines
 
-## Critical Implementation Details
+### Before starting any task
+1. Read this file fully (already doing it — good)
+2. Identify all files that will be affected and read them
+3. Read the relevant skill file(s) from `.agents/skills/`
+4. If the task touches tests, read `.agents/skills/testing-patterns.md` too
+5. If anything about the business requirement is ambiguous, **ask before writing code**
 
-### Categories System
-Categories are defined in TWO places and must be kept in sync:
-- Backend: `backend/src/shared/constants/categories.ts` (Categories enum)
-- Frontend: `frontend/src/types/transaction.ts` (CATEGORIES const)
+### Testing rule
+> Before marking any task as complete, run `npm test` in the affected
+> package(s). Do not consider a delivery done if any test is failing.
 
-The backend uses a lookup system that accepts both category keys (e.g., "INCOME") and display names (e.g., "Salário").
+### During implementation
+- Keep changes strictly scoped to the task — no opportunistic refactors
+- Never install new packages without asking first
+- Never modify files outside the task scope without explicit approval
+- Prefer small, reviewable commits over large ones
+- Run `npm test` after any changes to use cases, repositories, or Lambda handlers
 
-### Transaction Entity
-The Transaction entity has nullable date fields (Date | null):
-- `date`: Transaction date
-- `createdAt`: Creation timestamp
-- `updatedAt`: Update timestamp
+### Code style
+- `async/await` over `.then()` chains always
+- Descriptive variable names — no abbreviations except established ones (`dto`, `repo`, `ctx`, `tx`)
+- Use cases expose a single `execute()` method
+- Lambda handlers must stay thin — all logic belongs in use cases
+- No `any` types — if you don't know the type, ask or infer from context
+- Errors should be typed and handled explicitly, never swallowed
 
-The `card` field is optional and only used when `origin` is `'CREDIT_CARD'`.
+---
 
-### Environment Variables
-Backend requires:
-- `MONGODB_URI`: MongoDB connection string (local or Atlas)
+## Domain Rules (read carefully)
 
-Frontend requires:
-- `NEXT_PUBLIC_API_BASE_URL`: Backend API URL (e.g., `http://localhost:3001/dev`)
+These are business invariants that the code doesn't always make obvious:
 
-### Serverless Configuration
-- Service name: `personal-finance-api`
-- Runtime: Node.js 20.x
-- Region: us-east-1
-- Local dev port: 3001
-- All endpoints have CORS enabled
-- Functions: createTransaction, getTransactions, getTransactionById, updateTransaction, deleteTransaction, getReports, getCategories
+### Categories
+- Defined in **two places** that must always stay in sync:
+  - Backend: `backend/src/shared/constants/categories.ts` (enum)
+  - Frontend: `frontend/src/types/transaction.ts` (const)
+- Backend accepts both category keys (`"INCOME"`) and display names (`"Salário"`)
+- When adding a category, update **both files** in the same change
+
+### Transactions
+- `date`, `createdAt`, `updatedAt` are `Date | null` — always handle the null case
+- `card` field is only valid when `origin === 'CREDIT_CARD'` — never set it otherwise
+- Date format boundary: backend uses `Date` objects, frontend uses ISO strings (`YYYY-MM-DD`)
+
+### Recurring Transactions
+- Stored in `localStorage` only — no backend persistence
+- Managed entirely by `frontend/src/services/recurring.ts`
+- Templates define frequency (`daily` | `weekly` | `monthly` | `annual`)
+- Actual transactions are generated manually from templates, not automatically
+- Active/inactive toggling does not delete — it only changes status
+
+### CSV Import/Export
+- Export: generated client-side from filtered transactions (`csv.ts`)
+- Import: validates format, creates transactions in batch via API
+- Required format: `date` as `YYYY-MM-DD`, `amount` as numeric, `origin` as `CREDIT_CARD` or `CASH`
+
+### Filtering
+Frontend filter state is passed as query params to `ListTransactions` use case.
+Supported filters: `description` (text search), `type`, `category`, `origin`, date range (`startMonth`/`endMonth`).
+
+---
 
 ## Data Flow Patterns
 
-### Creating a Transaction
-1. Frontend calls `api.createTransaction()` with CreateTransactionPayload
-2. Lambda handler imports bootstrap, validates with Zod schema
-3. Use case instantiates Transaction entity (validates business rules)
-4. Repository saves to MongoDB via Mongoose
-5. Response DTO returned through layers to frontend
+### Creating a transaction
+```
+Frontend api.createTransaction()
+  → Lambda handler (bootstrap → validate with Zod)
+    → Use case (instantiate Transaction entity)
+      → Repository (save via Mongoose)
+        → Response DTO back through layers
+```
 
-### Filtering Transactions
-Frontend supports filtering by:
-- Description (text search)
-- Type (income/expense)
-- Category
-- Origin (CREDIT_CARD/CASH)
-- Date range (separate start/end month inputs)
+### Environment Variables
 
-Filters are passed as query parameters to the backend's ListTransactions use case.
+Backend:
+```
+MONGODB_URI=<local or Atlas connection string>
+```
 
-### CSV Import/Export
-- Export: Frontend generates CSV from filtered transactions using `csv.ts` service
-- Import: Validates CSV format, creates transactions in batch via API
-- Model CSV template available for download in UI
+Frontend:
+```
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/dev
+```
 
-### Recurring Transactions
-Stored in localStorage (not in backend database). Frontend service (`recurring.ts`) manages:
-- Template definitions with frequency (daily/weekly/monthly/annual)
-- Manual generation of actual transactions from templates
-- Active/inactive status without deletion
+### Serverless
+- Service: `personal-finance-api`
+- Runtime: Node.js 20.x
+- Region: `us-east-1`
+- Local port: `3001`
+- CORS enabled on all endpoints
+- Functions: `createTransaction`, `getTransactions`, `getTransactionById`, `updateTransaction`, `deleteTransaction`, `getReports`, `getCategories`
 
-## Testing Approach
-
-Backend uses Jest for testing. When writing tests:
-- Test use cases in isolation with mocked repositories
-- Test repository implementations against test database
-- Validate Zod schemas thoroughly
-
-Frontend uses Jest + React Testing Library. When writing tests:
-- Test components with user interactions
-- Mock API calls with custom test utilities
-- Test dark mode class toggling
+---
 
 ## Common Pitfalls
 
-1. **Path Aliases**: Always import `bootstrap.ts` FIRST in Lambda handlers before any aliased imports
-2. **Category Sync**: When adding categories, update BOTH backend and frontend constants
-3. **Date Handling**: Backend uses Date objects, frontend uses ISO strings (YYYY-MM-DD)
-4. **Client Components**: Remember `"use client"` for hooks, event handlers, browser APIs
-5. **MongoDB Connection**: Connection is cached globally; don't create multiple connections
-6. **CSV Format**: Date must be YYYY-MM-DD, Amount must be numeric, Origin must be CREDIT_CARD or CASH
-7. **Dark Mode**: Use Tailwind `dark:` classes, theme state managed by ThemeProvider context
+| Pitfall | Rule |
+|---|---|
+| Forgetting `bootstrap.ts` | First import in every Lambda handler, always |
+| Category out of sync | Update backend enum AND frontend const together |
+| Raw `fetch` in components | Use React Query via `services/api.ts` |
+| `card` set on cash transactions | Only valid when `origin === 'CREDIT_CARD'` |
+| Multiple MongoDB connections | Connection is cached globally — never instantiate a new one |
+| Dark mode missing | Always add `dark:` variants for custom styles |
+| Mutable domain entities | Domain entities are immutable — don't add setters |
+| Skipping skill files | Read the relevant skill before writing UI, React, or test code |
+
+---
+
+## Testing
+
+- Backend: Jest, test use cases with mocked repositories
+- Frontend: Jest + React Testing Library
+- Before writing any test, read `.agents/skills/testing-patterns.md`
+- Mock API calls with test utilities — never hit real endpoints in tests
+- Test dark mode class toggling where applicable
+- Validate Zod schemas thoroughly in backend tests

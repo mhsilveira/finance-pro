@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createTransaction, deleteTransaction, getAllTransactions } from "@/services/api";
+import { createTransaction, deleteAllTransactions } from "@/services/api";
 
 interface DevToolsProps {
 	userId: string;
@@ -329,19 +329,8 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 
 		setLoading(true);
 		try {
-			const transactions = await getAllTransactions(userId);
-
-			let deleted = 0;
-			for (const transaction of transactions) {
-				try {
-					await deleteTransaction(transaction.id);
-					deleted++;
-				} catch (error) {
-					console.error("Erro ao deletar transação:", transaction.id, error);
-				}
-			}
-
-			alert(`${deleted} transações deletadas com sucesso!`);
+			const result = await deleteAllTransactions(userId);
+			alert(`${result.deletedCount} transações deletadas com sucesso!`);
 			onUpdate();
 		} catch (error) {
 			alert("Erro ao limpar transações");

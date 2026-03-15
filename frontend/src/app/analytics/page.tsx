@@ -103,7 +103,36 @@ export default function AnalyticsPage() {
 
 	const totalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
 
-	const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
+	// Calculate expense variation vs previous period
+	const getPreviousPeriodExpenses = () => {
+		const now = new Date();
+		let prevTransactions: typeof filteredTransactions;
+
+		if (selectedPeriod === "month") {
+			const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+			const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+			prevTransactions = transactions.filter((t) => {
+				const d = new Date(t.date);
+				return d >= twoMonthsAgo && d < oneMonthAgo;
+			});
+		} else if (selectedPeriod === "quarter") {
+			const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+			const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+			prevTransactions = transactions.filter((t) => {
+				const d = new Date(t.date);
+				return d >= sixMonthsAgo && d < threeMonthsAgo;
+			});
+		} else {
+			return 0;
+		}
+
+		return prevTransactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+	};
+
+	const prevPeriodExpenses = getPreviousPeriodExpenses();
+	const expenseVariation = prevPeriodExpenses > 0
+		? ((totalExpenses - prevPeriodExpenses) / prevPeriodExpenses) * 100
+		: 0;
 
 	// Chart data
 	const categoryChartData = {
@@ -224,8 +253,19 @@ export default function AnalyticsPage() {
 					<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
 						<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
 						<div className="relative">
-							<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-2">Taxa de Economia</p>
-							<p className="text-3xl font-semibold text-gray-100 tabular-nums">{savingsRate.toFixed(1)}%</p>
+							<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-2">Variação Mensal</p>
+							{selectedPeriod === "all" ? (
+								<p className="text-lg font-medium text-gray-400">Selecione um período</p>
+							) : (
+								<>
+									<p className={`text-3xl font-semibold tabular-nums ${expenseVariation > 0 ? "text-red-400" : expenseVariation < 0 ? "text-green-400" : "text-gray-100"}`}>
+										{expenseVariation > 0 ? "+" : ""}{expenseVariation.toFixed(1)}%
+									</p>
+									<p className="text-xs text-gray-400 mt-1">
+										{expenseVariation > 0 ? "gastando mais" : expenseVariation < 0 ? "gastando menos" : "sem variação"} vs período anterior
+									</p>
+								</>
+							)}
 						</div>
 					</div>
 				</div>

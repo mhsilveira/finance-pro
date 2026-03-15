@@ -36,8 +36,6 @@ export default function DashboardPage() {
 
 	const expense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
-	const balance = income - expense;
-
 	// Calculate savings rate
 	const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
 
@@ -76,6 +74,21 @@ export default function DashboardPage() {
 	const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 	const currentDay = now.getDate();
 	const avgDailyExpense = currentDay > 0 ? currentMonthExpense / currentDay : 0;
+
+	// Top spending category this month
+	const currentMonthExpenses = currentMonthTransactions.filter((t) => t.type === "expense");
+	const categoryTotals = new Map<string, number>();
+	currentMonthExpenses.forEach((t) => {
+		const cat = t.category || "Outros";
+		categoryTotals.set(cat, (categoryTotals.get(cat) || 0) + t.amount);
+	});
+	const topCategory = Array.from(categoryTotals.entries()).sort((a, b) => b[1] - a[1])[0];
+
+	// Fixed costs estimate (Contas + Assinaturas + Aluguel)
+	const FIXED_COST_CATEGORIES = ["Contas", "Assinaturas", "Aluguel"];
+	const fixedCosts = currentMonthExpenses
+		.filter((t) => FIXED_COST_CATEGORIES.includes(t.category))
+		.reduce((sum, t) => sum + t.amount, 0);
 
 	// Get recent transactions (last 5)
 	const recentTransactions = [...transactions]
@@ -251,12 +264,14 @@ export default function DashboardPage() {
 						<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
 						<div className="relative flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Saldo</p>
-								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{formatCurrency(balance)}</p>
-								<p className="text-xs text-gray-400 mt-1">disponível</p>
+								<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Maior Gasto do Mês</p>
+								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
+									{topCategory ? formatCurrency(topCategory[1]) : "—"}
+								</p>
+								<p className="text-xs text-gray-400 mt-1">{topCategory ? topCategory[0] : "sem dados"}</p>
 							</div>
 							<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">💰</span>
+								<span className="text-2xl">👑</span>
 							</div>
 						</div>
 					</div>
@@ -318,20 +333,18 @@ export default function DashboardPage() {
 						</div>
 					</div>
 
-					{/* Current Month Balance */}
+					{/* Fixed Costs */}
 					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-orange-500/30 transition-all">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Saldo do Mês</p>
-								<p
-									className={`text-2xl font-semibold mt-2 tabular-nums ${(currentMonthIncome - currentMonthExpense) >= 0 ? "text-green-400" : "text-red-400"}`}
-								>
-									{formatCurrency(currentMonthIncome - currentMonthExpense)}
+								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Gastos Fixos</p>
+								<p className="text-2xl font-semibold text-orange-400 mt-2 tabular-nums">
+									{formatCurrency(fixedCosts)}
 								</p>
-								<p className="text-xs text-gray-500 mt-1">receitas menos despesas</p>
+								<p className="text-xs text-gray-500 mt-1">contas, assinaturas, aluguel</p>
 							</div>
 							<div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">💵</span>
+								<span className="text-2xl">📌</span>
 							</div>
 						</div>
 					</div>

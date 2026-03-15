@@ -1,5 +1,5 @@
-require('dotenv').config();
-const mongoose = require('mongoose');
+require('dotenv').config()
+const mongoose = require('mongoose')
 
 const CategorySchema = new mongoose.Schema({
   key: String,
@@ -7,24 +7,25 @@ const CategorySchema = new mongoose.Schema({
   type: String,
   icon: String,
   color: String
-});
+})
 
-const Category = mongoose.model('Category', CategorySchema);
+const Category = mongoose.model('Category', CategorySchema)
 
-async function resetCategories() {
+async function resetCategories () {
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/financial_control';
-    console.log('Conectando ao MongoDB...');
-    await mongoose.connect(mongoUri);
-    console.log('Conectado!');
+    const mongoUri =
+      process.env.MONGODB_URI || 'mongodb://localhost:27017/financial_control'
+    console.log('Conectando ao MongoDB...')
+    await mongoose.connect(mongoUri)
+    console.log('Conectado!')
 
     // Deletar todas as categorias
-    console.log('Deletando categorias existentes...');
-    await Category.deleteMany({});
-    console.log('Categorias deletadas!');
+    console.log('Deletando categorias existentes...')
+    await Category.deleteMany({})
+    console.log('Categorias deletadas!')
 
     // Inserir novas categorias
-    console.log('Inserindo categorias padrão...');
+    console.log('Inserindo categorias padrão...')
     const defaultCategories = [
       {
         key: 'INCOME',
@@ -32,27 +33,6 @@ async function resetCategories() {
         type: 'income',
         icon: '💰',
         color: '#10b981'
-      },
-      {
-        key: 'FREELANCE',
-        name: 'Freelance',
-        type: 'income',
-        icon: '💼',
-        color: '#3b82f6'
-      },
-      {
-        key: 'INVESTMENT',
-        name: 'Investimentos',
-        type: 'income',
-        icon: '📈',
-        color: '#8b5cf6'
-      },
-      {
-        key: 'RENT',
-        name: 'Aluguel',
-        type: 'expense',
-        icon: '🏠',
-        color: '#ef4444'
       },
       {
         key: 'FOOD',
@@ -88,13 +68,6 @@ async function resetCategories() {
         type: 'expense',
         icon: '⚕️',
         color: '#14b8a6'
-      },
-      {
-        key: 'EDUCATION',
-        name: 'Educação',
-        type: 'expense',
-        icon: '📚',
-        color: '#6366f1'
       },
       {
         key: 'ENTERTAINMENT',
@@ -137,26 +110,35 @@ async function resetCategories() {
         type: 'expense',
         icon: '🏷️',
         color: '#9ca3af'
+      },
+      {
+        key: 'PETS',
+        name: 'Pets',
+        type: 'expense',
+        icon: '🐕',
+        color: '#14b8a6'
       }
-    ];
+    ]
 
-    await Category.insertMany(defaultCategories);
-    console.log(`✅ ${defaultCategories.length} categorias inseridas com sucesso!`);
+    await Category.insertMany(defaultCategories)
+    console.log(
+      `✅ ${defaultCategories.length} categorias inseridas com sucesso!`
+    )
 
     // Listar categorias
-    const categories = await Category.find({}).sort({ name: 1 });
-    console.log('\nCategorias no banco:');
+    const categories = await Category.find({}).sort({ name: 1 })
+    console.log('\nCategorias no banco:')
     categories.forEach(cat => {
-      console.log(`  ${cat.icon} ${cat.name} (${cat.key}) - ${cat.type}`);
-    });
+      console.log(`  ${cat.icon} ${cat.name} (${cat.key}) - ${cat.type}`)
+    })
 
-    await mongoose.connection.close();
-    console.log('\nConexão fechada. Pronto!');
-    process.exit(0);
+    await mongoose.connection.close()
+    console.log('\nConexão fechada. Pronto!')
+    process.exit(0)
   } catch (error) {
-    console.error('Erro:', error);
-    process.exit(1);
+    console.error('Erro:', error)
+    process.exit(1)
   }
 }
 
-resetCategories();
+resetCategories()

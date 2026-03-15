@@ -6,6 +6,8 @@
 		"dev": "next dev --turbopack",
 		"build": "next build --turbopack",
 		"start": "next start",
+		"test": "jest",
+		"test:ci": "jest --runInBand --forceExit",
 		"lint": "biome check",
 		"format": "biome format --write"
 	},
@@ -39,6 +41,7 @@
 		"jest-environment-jsdom": "^30.2.0",
 		"tailwindcss": "^4",
 		"ts-jest": "^29.4.4",
+		"ts-node": "^10.9.2",
 		"typescript": "^5"
 	}
 }

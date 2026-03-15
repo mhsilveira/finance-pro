@@ -65,6 +65,14 @@ functions:
           method: delete
           cors: true
 
+  deleteAllTransactions:
+    handler: src/interface/lambda/deleteAllTransactions.handler
+    timeout: 30
+    events:
+      - http:
+          path: transactions
+          method: delete
+          cors: true
 
   getReports:
       handler: src/interface/lambda/getReports.handler
@@ -84,10 +92,68 @@ functions:
 
   reprocessCategories:
     handler: src/interface/lambda/reprocessCategories.handler
+    timeout: 60
     events:
       - http:
           path: transactions/reprocess-categories
           method: post
+          cors: true
+
+  getCategoryCorrections:
+    handler: src/interface/lambda/categoryCorrections.getHandler
+    events:
+      - http:
+          path: category-corrections
+          method: get
+          cors: true
+
+  saveCategoryCorrection:
+    handler: src/interface/lambda/categoryCorrections.postHandler
+    events:
+      - http:
+          path: category-corrections
+          method: post
+          cors: true
+
+  getTransactionStats:
+    handler: src/interface/lambda/getTransactionStats.handler
+    events:
+      - http:
+          path: transactions/stats
+          method: get
+          cors: true
+
+  batchCreateTransactions:
+    handler: src/interface/lambda/batchCreateTransactions.handler
+    timeout: 60
+    events:
+      - http:
+          path: transactions/batch
+          method: post
+          cors: true
+
+  createCategory:
+    handler: src/interface/lambda/manageCategories.createHandler
+    events:
+      - http:
+          path: categories
+          method: post
+          cors: true
+
+  updateCategory:
+    handler: src/interface/lambda/manageCategories.updateHandler
+    events:
+      - http:
+          path: categories/{key}
+          method: put
+          cors: true
+
+  deleteCategory:
+    handler: src/interface/lambda/manageCategories.deleteHandler
+    events:
+      - http:
+          path: categories/{key}
+          method: delete
           cors: true
 
 custom:

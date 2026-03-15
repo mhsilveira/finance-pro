@@ -1,6 +1,5 @@
 export enum Categories {
   'INCOME' = 'Salário',
-  'RENT' = 'Aluguel',
   'FOOD' = 'Alimentação',
   'TRANSPORT' = 'Transporte',
   'ENTERTAINMENT' = 'Lazer',
@@ -8,8 +7,10 @@ export enum Categories {
   'EDUCATION' = 'Educação',
   'CLOTHING' = 'Vestuário',
   'SUBSCRIPTIONS' = 'Assinaturas',
+  'SHOPPING' = 'Compras',
   'BILLS' = 'Contas',
-  'GENERAL' = 'Gastos gerais',
+  'GENERAL' = 'Gastos Gerais',
   'OTHER' = 'Outros',
-  'TO_CATEGORIZE' = 'A Categorizar'
+  'TO_CATEGORIZE' = 'A Categorizar',
+  'PETS' = 'Pets'
 }

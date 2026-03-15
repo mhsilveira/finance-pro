@@ -1,5 +1,6 @@
 import { Transaction } from '@domain/entities/Transaction'
 import { ITransactionRepository } from '@domain/repositories/ITransactionRepository'
+import { generateIdempotencyKey } from '@shared/utils/idempotencyKey'
 import mongoose, { Types } from 'mongoose'
 import { TransactionMongooseModel } from '../models/TransactionModel'
 
@@ -73,6 +74,11 @@ function toDomain (doc: any): Transaction {
 export class TransactionRepository implements ITransactionRepository {
   async create (transaction: Transaction): Promise<Transaction> {
     const monthYear = toMonthYearFromDate(transaction.date)
+    const idempotencyKey = generateIdempotencyKey(
+      transaction.date,
+      transaction.description,
+      transaction.amount
+    )
 
     const data: any = {
       userId: transaction.userId,
@@ -93,7 +99,8 @@ export class TransactionRepository implements ITransactionRepository {
       updatedAt: transaction.updatedAt ?? new Date(),
       deletedAt: (transaction as any).deletedAt ?? null,
       accountId: (transaction as any).accountId ?? 'default-wallet',
-      bank: (transaction as any).bank ?? null
+      bank: (transaction as any).bank ?? null,
+      idempotencyKey
     }
 
     // Se o id passado for válido ObjectId, usa; senão deixa o Mongo gerar
@@ -187,6 +194,87 @@ export class TransactionRepository implements ITransactionRepository {
     ).exec()
 
     return doc ? toDomain(doc) : null
+  }
+
+  async getStats (userId: string, filters?: { monthFrom?: string; monthTo?: string }): Promise<{
+    totalCount: number
+    income: number
+    expense: number
+    byCategory: Array<{ category: string; total: number; count: number }>
+  }> {
+    const match: any = { userId, deletedAt: null }
+
+    if (filters?.monthFrom || filters?.monthTo) {
+      match.monthYear = {}
+      if (filters.monthFrom) match.monthYear.$gte = filters.monthFrom
+      if (filters.monthTo) match.monthYear.$lte = filters.monthTo
+    }
+
+    const [summaryResult, categoryResult] = await Promise.all([
+      TransactionMongooseModel.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: null,
+            totalCount: { $sum: 1 },
+            income: {
+              $sum: {
+                $cond: [{ $eq: ['$type', 'income'] }, { $toDouble: '$amount' }, 0]
+              }
+            },
+            expense: {
+              $sum: {
+                $cond: [{ $eq: ['$type', 'expense'] }, { $toDouble: '$amount' }, 0]
+              }
+            }
+          }
+        }
+      ]).exec(),
+      TransactionMongooseModel.aggregate([
+        { $match: { ...match, type: 'expense' } },
+        {
+          $group: {
+            _id: '$categoryName',
+            total: { $sum: { $toDouble: '$amount' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { total: -1 } }
+      ]).exec()
+    ])
+
+    const summary = summaryResult[0] || { totalCount: 0, income: 0, expense: 0 }
+
+    return {
+      totalCount: summary.totalCount,
+      income: summary.income,
+      expense: summary.expense,
+      byCategory: categoryResult.map((c: any) => ({
+        category: c._id || 'Outros',
+        total: c.total,
+        count: c.count
+      }))
+    }
+  }
+
+  async bulkUpdateCategories (updates: Array<{ id: string; category: string }>): Promise<number> {
+    if (updates.length === 0) return 0
+
+    const ops = updates.map(({ id, category }) => ({
+      updateOne: {
+        filter: { _id: new Types.ObjectId(id) },
+        update: {
+          $set: {
+            categoryId: category,
+            categoryName: category,
+            updatedAt: new Date()
+          }
+        }
+      }
+    }))
+
+    const result = await TransactionMongooseModel.bulkWrite(ops, { ordered: false })
+    return result.modifiedCount
   }
 
   async delete (id: string): Promise<boolean> {

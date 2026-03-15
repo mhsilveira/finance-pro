@@ -7,9 +7,9 @@ export class Transaction {
     public type: 'income' | 'expense',
     public origin?: 'CREDIT_CARD' | 'CASH',
     public category?: string,
-    public date: Date | null = null, // antes era Date ou Date | undefined
-    public createdAt: Date | null = null, // idem
-    public updatedAt: Date | null = null, // idem
+    public date: Date | null = null,
+    public createdAt: Date | null = null,
+    public updatedAt: Date | null = null,
     public card?: string
   ) {
     this.validate()

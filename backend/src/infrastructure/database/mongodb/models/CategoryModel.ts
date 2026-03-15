@@ -7,6 +7,8 @@ export interface ICategory {
   type: 'income' | 'expense' | 'both'
   icon?: string
   color?: string
+  keywords?: string[]
+  sortOrder?: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -37,6 +39,14 @@ const CategorySchema = new Schema<ICategory>(
     color: {
       type: String,
       trim: true
+    },
+    keywords: {
+      type: [String],
+      default: []
+    },
+    sortOrder: {
+      type: Number,
+      default: 100
     }
   },
   {

@@ -3,11 +3,11 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Cross2Icon } from "@radix-ui/react-icons";
-import { CATEGORIES, type CategoryKey, type CreateTransactionPayload } from "../types/transaction";
+import { CATEGORIES, type CreateTransactionPayload } from "../types/transaction";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select } from "./ui/select";
-import { useCreateTransaction } from "@/hooks/useTransactions";
+import { useCreateTransaction, useCategories } from "@/hooks/useTransactions";
 
 interface AddTransactionModalProps {
 	userId: string;
@@ -18,6 +18,7 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
 	const [open, setOpen] = useState(false);
 	const [error, setError] = useState("");
 	const createMutation = useCreateTransaction();
+	const { data: backendCategories = [] } = useCategories();
 
 	const [formData, setFormData] = useState<Omit<CreateTransactionPayload, "userId">>({
 		description: "",
@@ -192,11 +193,20 @@ export function AddTransactionModal({ userId, onSuccess }: AddTransactionModalPr
 								value={formData.category}
 								onChange={(e) => handleChange("category", e.target.value)}
 							>
-								{Object.entries(CATEGORIES).map(([key, label]) => (
-									<option key={key} value={label}>
-										{label}
-									</option>
-								))}
+								{backendCategories.length > 0
+									? backendCategories
+										.filter((cat) => cat.type === formData.type || cat.type === "both")
+										.map((cat) => (
+											<option key={cat.key} value={cat.name}>
+												{cat.icon ? `${cat.icon} ` : ""}{cat.name}
+											</option>
+										))
+									: Object.entries(CATEGORIES).map(([key, label]) => (
+										<option key={key} value={label}>
+											{label}
+										</option>
+									))
+								}
 							</Select>
 						</div>
 
