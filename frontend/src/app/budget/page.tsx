@@ -155,15 +155,15 @@ export default function BudgetPage() {
 
 	return (
 		<div className="min-h-screen animate-fade-in">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-[var(--text-primary)]">Orçamento e Metas</h1>
+					<h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Orçamento e Metas</h1>
 					<p className="mt-2 text-[var(--text-secondary)]">Defina limites e alcance seus objetivos financeiros</p>
 				</div>
 
 				<div className="mb-8">
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-semibold text-[var(--text-primary)]">Orçamentos Mensais</h2>
+						<h2 className="text-xl font-semibold text-[var(--text-primary)]">Orçamentos Mensais</h2>
 						<button
 							onClick={() => setShowBudgetModal(true)}
 							className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded-xl hover:bg-[var(--accent-primary-hover)] transition-all font-semibold shadow-[0_0_20px_var(--accent-glow)]"
@@ -216,7 +216,7 @@ export default function BudgetPage() {
 									className="glass glass-hover rounded-xl p-6"
 								>
 									<div className="flex items-center justify-between mb-4">
-										<h3 className="font-semibold text-[var(--text-primary)] uppercase tracking-wide">{budget.category}</h3>
+										<h3 className="font-semibold text-[var(--text-primary)]">{budget.category}</h3>
 										<button
 											onClick={() => handleRemoveBudget(budget.category)}
 											className="text-[var(--text-muted)] hover:text-pink-400 transition-colors"
@@ -283,7 +283,7 @@ export default function BudgetPage() {
 
 				<div>
 					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-2xl font-semibold text-[var(--text-primary)]">Metas Financeiras</h2>
+						<h2 className="text-xl font-semibold text-[var(--text-primary)]">Metas Financeiras</h2>
 						<button
 							onClick={() => setShowGoalModal(true)}
 							className="px-4 py-2 bg-[var(--accent-primary)] text-white rounded-xl hover:bg-[var(--accent-primary-hover)] transition-all font-semibold shadow-[0_0_20px_var(--accent-glow)]"
@@ -317,7 +317,7 @@ export default function BudgetPage() {
 
 									<div className="mb-4">
 										<div className="flex items-center justify-between mb-2">
-											<span className="text-sm text-[var(--text-secondary)] uppercase tracking-wide">Progresso</span>
+											<span className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">Progresso</span>
 											<span className="text-sm font-semibold text-purple-400 tabular-nums">
 												{percentage.toFixed(0)}%
 											</span>

@@ -341,7 +341,7 @@ export default function TransactionsPage() {
 
 	return (
 		<div className="min-h-screen animate-fade-in">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
 				<div className="mb-8">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
@@ -511,8 +511,8 @@ export default function TransactionsPage() {
 						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-[var(--text-muted)]">Total</p>
-									<p className="text-2xl font-semibold text-[var(--text-primary)] mt-2 tabular-nums">{stats.total}</p>
+									<p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">Total</p>
+									<p className="text-2xl font-bold text-[var(--text-primary)] mt-2 tabular-nums">{stats.total}</p>
 								</div>
 								<div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center">
 									<svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -530,8 +530,8 @@ export default function TransactionsPage() {
 						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-[var(--text-muted)]">Receitas</p>
-									<p className="text-2xl font-semibold text-emerald-400 mt-2 tabular-nums">
+									<p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">Receitas</p>
+									<p className="text-2xl font-bold text-emerald-400 mt-2 tabular-nums">
 										{formatCurrency(stats.income)}
 									</p>
 								</div>
@@ -546,8 +546,8 @@ export default function TransactionsPage() {
 						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-[var(--text-muted)]">Despesas</p>
-									<p className="text-2xl font-semibold text-pink-400 mt-2 tabular-nums">
+									<p className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">Despesas</p>
+									<p className="text-2xl font-bold text-pink-400 mt-2 tabular-nums">
 										{formatCurrency(stats.expense)}
 									</p>
 								</div>
