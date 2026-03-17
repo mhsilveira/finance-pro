@@ -133,7 +133,7 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 			case "income": return "bg-emerald-500/15 text-emerald-400";
 			case "expense": return "bg-pink-500/15 text-pink-400";
 			case "both": return "bg-blue-500/20 text-blue-400";
-			default: return "bg-gray-500/20 text-gray-400";
+			default: return "bg-white/5 text-[var(--text-muted)]";
 		}
 	};
 
