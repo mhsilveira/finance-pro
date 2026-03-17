@@ -8,7 +8,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ className, ch
 	return (
 		<select
 			className={cn(
-				"flex h-10 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-base text-gray-100 ring-offset-slate-950 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all md:text-sm",
+				"flex h-10 w-full rounded-xl border border-[var(--border-glass)] bg-[rgba(0,0,0,0.3)] px-3 py-2 pr-9 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[0_0_12px_var(--accent-glow)] disabled:cursor-not-allowed disabled:opacity-50 transition-all appearance-none bg-[length:16px_16px] bg-[position:right_0.625rem_center] bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b6580%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')]",
 				className,
 			)}
 			ref={ref}

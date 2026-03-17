@@ -2,11 +2,11 @@ import { Skeleton } from "./skeleton";
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 	return (
-		<div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+		<div className="glass overflow-hidden">
 			<div className="overflow-x-auto">
 				<table className="w-full">
 					<thead>
-						<tr className="bg-slate-950 border-b border-slate-800">
+						<tr className="bg-[var(--bg-glass-subtle)] border-b border-[var(--border-glass)]">
 							<th className="px-6 py-4 text-left">
 								<Skeleton className="h-4 w-24" />
 							</th>
@@ -30,9 +30,9 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 							</th>
 						</tr>
 					</thead>
-					<tbody className="divide-y divide-slate-800">
+					<tbody className="divide-y divide-[var(--border-glass)]">
 						{Array.from({ length: rows }).map((_, i) => (
-							<tr key={i} className="hover:bg-slate-800/50">
+							<tr key={i} className="hover:bg-white/[0.03]">
 								<td className="px-6 py-4">
 									<Skeleton className="h-5 w-48" />
 									<Skeleton className="h-3 w-24 mt-2" />

@@ -2,7 +2,7 @@ import { Skeleton } from "./skeleton";
 
 export function StatsCardSkeleton() {
 	return (
-		<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+		<div className="glass p-6">
 			<div className="flex items-center justify-between">
 				<div className="flex-1">
 					<Skeleton className="h-4 w-20 mb-3" />
@@ -17,7 +17,7 @@ export function StatsCardSkeleton() {
 
 export function ChartCardSkeleton() {
 	return (
-		<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
+		<div className="glass p-6">
 			<Skeleton className="h-6 w-40 mb-6" />
 			<div className="space-y-4">
 				<Skeleton className="h-64 w-full" />

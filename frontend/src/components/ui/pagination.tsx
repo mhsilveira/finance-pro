@@ -35,10 +35,10 @@ const PaginationLink = ({ className, isActive, size = "icon", ...props }: Pagina
 	<button
 		aria-current={isActive ? "page" : undefined}
 		className={cn(
-			"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 disabled:pointer-events-none disabled:opacity-50",
+			"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] disabled:pointer-events-none disabled:opacity-50",
 			isActive
-				? "bg-yellow-500 text-slate-950 shadow-lg shadow-yellow-500/20"
-				: "text-gray-400 hover:bg-slate-800 hover:text-gray-100",
+				? "bg-[var(--accent-primary)] text-white shadow-[0_0_20px_var(--accent-glow)]"
+				: "text-[var(--text-secondary)] hover:bg-white/5 hover:text-[var(--text-primary)]",
 			size === "default" ? "h-10 px-4 py-2" : "h-10 w-10",
 			className,
 		)}
@@ -65,7 +65,7 @@ PaginationNext.displayName = "PaginationNext";
 
 const PaginationEllipsis = ({ className, ...props }: React.ComponentProps<"span">) => (
 	<span aria-hidden className={cn("flex h-10 w-10 items-center justify-center", className)} {...props}>
-		<MoreHorizontal className="h-4 w-4 text-gray-400" />
+		<MoreHorizontal className="h-4 w-4 text-[var(--text-muted)]" />
 		<span className="sr-only">More pages</span>
 	</span>
 );
