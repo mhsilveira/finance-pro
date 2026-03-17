@@ -15,6 +15,7 @@ import {
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
 import { useAllTransactions } from "@/hooks/useTransactions";
+import { SpendingInsights } from "@/components/SpendingInsights";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -31,15 +32,12 @@ export default function DashboardPage() {
 		}).format(value);
 	};
 
-	// Calculate stats
 	const income = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
 
 	const expense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
-	// Calculate savings rate
 	const savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
 
-	// Get current month transactions
 	const now = new Date();
 	const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 	const currentMonthTransactions = transactions.filter((t) => {
@@ -55,7 +53,6 @@ export default function DashboardPage() {
 		.filter((t) => t.type === "expense")
 		.reduce((sum, t) => sum + t.amount, 0);
 
-	// Get previous month for comparison
 	const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 	const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
 	const prevMonthTransactions = transactions.filter((t) => {
@@ -67,15 +64,12 @@ export default function DashboardPage() {
 		.filter((t) => t.type === "expense")
 		.reduce((sum, t) => sum + t.amount, 0);
 
-	// Calculate change percentage
 	const expenseChange = prevMonthExpense > 0 ? ((currentMonthExpense - prevMonthExpense) / prevMonthExpense) * 100 : 0;
 
-	// Average daily expense this month
 	const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 	const currentDay = now.getDate();
 	const avgDailyExpense = currentDay > 0 ? currentMonthExpense / currentDay : 0;
 
-	// Top spending category this month
 	const currentMonthExpenses = currentMonthTransactions.filter((t) => t.type === "expense");
 	const categoryTotals = new Map<string, number>();
 	currentMonthExpenses.forEach((t) => {
@@ -84,18 +78,15 @@ export default function DashboardPage() {
 	});
 	const topCategory = Array.from(categoryTotals.entries()).sort((a, b) => b[1] - a[1])[0];
 
-	// Fixed costs estimate (Contas + Assinaturas + Aluguel)
 	const FIXED_COST_CATEGORIES = ["Contas", "Assinaturas", "Aluguel"];
 	const fixedCosts = currentMonthExpenses
 		.filter((t) => FIXED_COST_CATEGORIES.includes(t.category))
 		.reduce((sum, t) => sum + t.amount, 0);
 
-	// Get recent transactions (last 5)
 	const recentTransactions = [...transactions]
 		.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 		.slice(0, 5);
 
-	// Calculate monthly trends (last 6 months)
 	const getMonthlyData = () => {
 		const monthlyMap = new Map<string, { income: number; expense: number }>();
 
@@ -128,7 +119,6 @@ export default function DashboardPage() {
 
 	const monthlyData = getMonthlyData();
 
-	// Category breakdown for expenses
 	const getCategoryData = () => {
 		const categoryMap = new Map<string, number>();
 
@@ -155,16 +145,18 @@ export default function DashboardPage() {
 			{
 				label: "Receitas",
 				data: monthlyData.incomes,
-				borderColor: "rgb(34, 197, 94)",
-				backgroundColor: "rgba(34, 197, 94, 0.1)",
+				borderColor: "#34d399",
+				backgroundColor: "rgba(52, 211, 153, 0.1)",
 				tension: 0.4,
+				fill: true,
 			},
 			{
 				label: "Despesas",
 				data: monthlyData.expenses,
-				borderColor: "rgb(239, 68, 68)",
-				backgroundColor: "rgba(239, 68, 68, 0.1)",
+				borderColor: "#f472b6",
+				backgroundColor: "rgba(244, 114, 182, 0.1)",
 				tension: 0.4,
+				fill: true,
 			},
 		],
 	};
@@ -175,25 +167,63 @@ export default function DashboardPage() {
 			{
 				data: categoryData.values,
 				backgroundColor: [
-					"rgba(59, 130, 246, 0.8)",
-					"rgba(147, 51, 234, 0.8)",
-					"rgba(236, 72, 153, 0.8)",
-					"rgba(245, 158, 11, 0.8)",
-					"rgba(34, 197, 94, 0.8)",
-					"rgba(239, 68, 68, 0.8)",
-					"rgba(156, 163, 175, 0.8)",
+					"#8b5cf6",
+					"#f472b6",
+					"#34d399",
+					"#60a5fa",
+					"#fbbf24",
+					"#a78bfa",
+					"#6b6580",
 				],
 				borderWidth: 0,
 			},
 		],
 	};
 
+	const lineChartOptions = {
+		responsive: true,
+		plugins: {
+			legend: {
+				position: "bottom" as const,
+				labels: {
+					color: "var(--text-secondary)",
+					font: { size: 12 },
+				},
+			},
+		},
+		scales: {
+			y: {
+				beginAtZero: true,
+				ticks: { color: "#6b6580" },
+				grid: { color: "rgba(255, 255, 255, 0.05)" },
+			},
+			x: {
+				ticks: { color: "#6b6580" },
+				grid: { color: "rgba(255, 255, 255, 0.05)" },
+			},
+		},
+	};
+
+	const doughnutChartOptions = {
+		responsive: true,
+		maintainAspectRatio: true,
+		plugins: {
+			legend: {
+				position: "bottom" as const,
+				labels: {
+					color: "#a8a3b8",
+					font: { size: 11 },
+				},
+			},
+		},
+	};
+
 	if (loading) {
 		return (
-			<div className="min-h-screen bg-slate-950 flex items-center justify-center">
+			<div className="min-h-screen flex items-center justify-center">
 				<div className="text-center">
-					<div className="animate-spin rounded-full h-16 w-16 border-b-4 border-yellow-500 mx-auto mb-4" />
-					<p className="text-gray-400 font-medium">Carregando dashboard...</p>
+					<div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[var(--accent-primary)] mx-auto mb-4" />
+					<p className="text-[var(--text-secondary)] font-medium">Carregando dashboard...</p>
 				</div>
 			</div>
 		);
@@ -201,280 +231,256 @@ export default function DashboardPage() {
 
 	if (error) {
 		return (
-			<div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-				<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-8 max-w-md">
-					<h3 className="text-xl font-semibold text-red-400 mb-2">Erro ao carregar dados</h3>
-					<p className="text-red-300">{error}</p>
+			<div className="min-h-screen flex items-center justify-center p-6">
+				<div className="bg-pink-500/10 border border-pink-500/30 rounded-xl p-8 max-w-md">
+					<h3 className="text-xl font-semibold text-pink-400 mb-2">Erro ao carregar dados</h3>
+					<p className="text-pink-300">{error}</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-950 pt-4">
+		<div className="min-h-screen animate-fade-in">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 				{/* Header */}
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-gray-100">Dashboard</h1>
-					<p className="mt-2 text-gray-400">Visão geral das suas finanças</p>
+					<h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Dashboard</h1>
+					<p className="mt-2 text-[var(--text-secondary)]">Visão geral das suas finanças</p>
 				</div>
 
-				{/* Stats Cards */}
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
-								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{transactions.length}</p>
-								<p className="text-xs text-gray-500 mt-1">transações</p>
-							</div>
-							<div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">💳</span>
-							</div>
-						</div>
+				{/* Hero row: magazine grid on lg, stacked on mobile */}
+				<div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mb-8">
+					{/* Hero chart - line chart */}
+					<div className="glass p-6 order-2 lg:order-1">
+						<h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">Tendência Mensal</h2>
+						{monthlyData.labels.length > 0 ? (
+							<Line data={lineChartData} options={lineChartOptions} />
+						) : (
+							<p className="text-[var(--text-secondary)] text-center py-8">Sem dados suficientes</p>
+						)}
 					</div>
 
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
-								<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">{formatCurrency(income)}</p>
-								<p className="text-xs text-gray-500 mt-1">no período</p>
-							</div>
-							<div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">📈</span>
-							</div>
-						</div>
-					</div>
-
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
-								<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">{formatCurrency(expense)}</p>
-								<p className="text-xs text-gray-500 mt-1">no período</p>
-							</div>
-							<div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">📉</span>
+					{/* Metrics 2x2 grid */}
+					<div className="grid grid-cols-2 gap-4 order-1 lg:order-2">
+						{/* Total Transações */}
+						<div className="glass glass-hover p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-xs font-medium text-[var(--text-muted)]">Total</p>
+									<p className="text-xl font-semibold text-[var(--text-primary)] mt-1 tabular-nums">
+										{transactions.length}
+									</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">transações</p>
+								</div>
+								<div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+									<span className="text-lg">💳</span>
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<div className="bg-slate-900 border border-yellow-500/50 rounded-lg p-6 hover:border-yellow-500 transition-all relative overflow-hidden">
-						<div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
-						<div className="relative flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-yellow-400 uppercase tracking-wide">Maior Gasto do Mês</p>
-								<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">
-									{topCategory ? formatCurrency(topCategory[1]) : "—"}
-								</p>
-								<p className="text-xs text-gray-400 mt-1">{topCategory ? topCategory[0] : "sem dados"}</p>
+						{/* Receitas */}
+						<div className="glass glass-hover p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-xs font-medium text-[var(--text-muted)]">Receitas</p>
+									<p className="text-xl font-semibold text-emerald-400 mt-1 tabular-nums">
+										{formatCurrency(income)}
+									</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">no período</p>
+								</div>
+								<div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+									<span className="text-lg">📈</span>
+								</div>
 							</div>
-							<div className="w-12 h-12 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">👑</span>
+						</div>
+
+						{/* Despesas */}
+						<div className="glass glass-hover p-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-xs font-medium text-[var(--text-muted)]">Despesas</p>
+									<p className="text-xl font-semibold text-pink-400 mt-1 tabular-nums">
+										{formatCurrency(expense)}
+									</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">no período</p>
+								</div>
+								<div className="w-10 h-10 bg-pink-500/10 rounded-xl flex items-center justify-center">
+									<span className="text-lg">📉</span>
+								</div>
+							</div>
+						</div>
+
+						{/* Maior Gasto - highlighted card */}
+						<div className="glass glass-hover p-4 border-[var(--border-accent)] relative overflow-hidden">
+							<div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent" />
+							<div className="relative flex items-center justify-between">
+								<div>
+									<p className="text-xs font-medium text-purple-400">Maior Gasto</p>
+									<p className="text-xl font-semibold text-[var(--text-primary)] mt-1 tabular-nums">
+										{topCategory ? formatCurrency(topCategory[1]) : "—"}
+									</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">
+										{topCategory ? topCategory[0] : "sem dados"}
+									</p>
+								</div>
+								<div className="w-10 h-10 bg-purple-500/15 rounded-xl flex items-center justify-center">
+									<span className="text-lg">👑</span>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				{/* Additional Stats Cards */}
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-					{/* Savings Rate */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-blue-500/30 transition-all">
+				{/* Secondary metrics row */}
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+					{/* Taxa de Economia */}
+					<div className="glass glass-hover p-4">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Taxa de Economia</p>
+								<p className="text-xs font-medium text-[var(--text-muted)]">Taxa de Economia</p>
 								<p
-									className={`text-2xl font-semibold mt-2 tabular-nums ${savingsRate >= 0 ? "text-blue-400" : "text-red-400"}`}
+									className={`text-xl font-semibold mt-1 tabular-nums ${savingsRate >= 0 ? "text-blue-400" : "text-pink-400"}`}
 								>
 									{savingsRate.toFixed(1)}%
 								</p>
-								<p className="text-xs text-gray-500 mt-1">do total de receitas</p>
+								<p className="text-xs text-[var(--text-muted)] mt-1">do total de receitas</p>
 							</div>
-							<div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">🎯</span>
+							<div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+								<span className="text-lg">🎯</span>
 							</div>
 						</div>
 					</div>
 
-					{/* Current Month Expense */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-purple-500/30 transition-all">
+					{/* Despesas do Mês */}
+					<div className="glass glass-hover p-4">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas do Mês</p>
-								<p className="text-2xl font-semibold text-purple-400 mt-2 tabular-nums">
+								<p className="text-xs font-medium text-[var(--text-muted)]">Despesas do Mês</p>
+								<p className="text-xl font-semibold text-purple-400 mt-1 tabular-nums">
 									{formatCurrency(currentMonthExpense)}
 								</p>
 								{expenseChange !== 0 && (
-									<p className={`text-xs mt-1 ${expenseChange > 0 ? "text-red-400" : "text-green-400"}`}>
+									<p className={`text-xs mt-1 ${expenseChange > 0 ? "text-pink-400" : "text-emerald-400"}`}>
 										{expenseChange > 0 ? "↑" : "↓"} {Math.abs(expenseChange).toFixed(1)}% vs mês anterior
 									</p>
 								)}
 							</div>
-							<div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">📊</span>
+							<div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+								<span className="text-lg">📊</span>
 							</div>
 						</div>
 					</div>
 
-					{/* Average Daily Expense */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-cyan-500/30 transition-all">
+					{/* Média Diária */}
+					<div className="glass glass-hover p-4">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Média Diária</p>
-								<p className="text-2xl font-semibold text-cyan-400 mt-2 tabular-nums">
+								<p className="text-xs font-medium text-[var(--text-muted)]">Média Diária</p>
+								<p className="text-xl font-semibold text-cyan-400 mt-1 tabular-nums">
 									{formatCurrency(avgDailyExpense)}
 								</p>
-								<p className="text-xs text-gray-500 mt-1">em {currentDay} dias do mês</p>
+								<p className="text-xs text-[var(--text-muted)] mt-1">em {currentDay} dias do mês</p>
 							</div>
-							<div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">📅</span>
+							<div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+								<span className="text-lg">📅</span>
 							</div>
 						</div>
 					</div>
 
-					{/* Fixed Costs */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-orange-500/30 transition-all">
+					{/* Gastos Fixos */}
+					<div className="glass glass-hover p-4">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Gastos Fixos</p>
-								<p className="text-2xl font-semibold text-orange-400 mt-2 tabular-nums">
+								<p className="text-xs font-medium text-[var(--text-muted)]">Gastos Fixos</p>
+								<p className="text-xl font-semibold text-orange-400 mt-1 tabular-nums">
 									{formatCurrency(fixedCosts)}
 								</p>
-								<p className="text-xs text-gray-500 mt-1">contas, assinaturas, aluguel</p>
+								<p className="text-xs text-[var(--text-muted)] mt-1">contas, assinaturas, aluguel</p>
 							</div>
-							<div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
-								<span className="text-2xl">📌</span>
+							<div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
+								<span className="text-lg">📌</span>
 							</div>
 						</div>
 					</div>
 				</div>
 
-				{/* Charts */}
+				{/* Third row: category doughnut + recent transactions */}
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-					{/* Monthly Trends */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Tendência Mensal</h2>
-						{monthlyData.labels.length > 0 ? (
-							<Line
-								data={lineChartData}
-								options={{
-									responsive: true,
-									plugins: {
-										legend: {
-											position: "bottom",
-											labels: {
-												color: "#9CA3AF",
-												font: {
-													size: 12,
-												},
-											},
-										},
-									},
-									scales: {
-										y: {
-											beginAtZero: true,
-											ticks: { color: "#6B7280" },
-											grid: { color: "rgba(71, 85, 105, 0.3)" },
-										},
-										x: {
-											ticks: { color: "#6B7280" },
-											grid: { color: "rgba(71, 85, 105, 0.3)" },
-										},
-									},
-								}}
-							/>
-						) : (
-							<p className="text-gray-400 text-center py-8">Sem dados suficientes</p>
-						)}
-					</div>
-
-					{/* Category Breakdown */}
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-						<h2 className="text-lg font-semibold text-gray-100 mb-6 uppercase tracking-wide">Despesas por Categoria</h2>
+					{/* Doughnut chart */}
+					<div className="glass p-6">
+						<h2 className="text-lg font-semibold text-[var(--text-primary)] mb-6">Despesas por Categoria</h2>
 						{categoryData.labels.length > 0 ? (
 							<div className="flex justify-center">
 								<div className="w-64 h-64">
-									<Doughnut
-										data={doughnutChartData}
-										options={{
-											responsive: true,
-											maintainAspectRatio: true,
-											plugins: {
-												legend: {
-													position: "bottom",
-													labels: {
-														color: "#9CA3AF",
-														font: {
-															size: 11,
-														},
-													},
-												},
-											},
-										}}
-									/>
+									<Doughnut data={doughnutChartData} options={doughnutChartOptions} />
 								</div>
 							</div>
 						) : (
-							<p className="text-gray-400 text-center py-8">Sem despesas registradas</p>
+							<p className="text-[var(--text-secondary)] text-center py-8">Sem despesas registradas</p>
+						)}
+					</div>
+
+					{/* Recent transactions */}
+					<div className="glass p-6">
+						<div className="flex items-center justify-between mb-6">
+							<h2 className="text-lg font-semibold text-[var(--text-primary)]">Transações Recentes</h2>
+							<Link
+								href="/transactions"
+								className="text-sm font-medium text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] transition-colors"
+							>
+								Ver todas →
+							</Link>
+						</div>
+
+						{recentTransactions.length > 0 ? (
+							<div className="space-y-2">
+								{recentTransactions.map((t) => (
+									<div
+										key={t.id}
+										className="flex items-center justify-between p-4 rounded-xl hover:bg-white/[0.03] transition-all border border-[var(--border-glass)] hover:border-[var(--border-glass-hover)]"
+									>
+										<div className="flex items-center gap-3">
+											<div
+												className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+													t.type === "income" ? "bg-emerald-500/10" : "bg-pink-500/10"
+												}`}
+											>
+												<span className="text-lg">{t.type === "income" ? "📈" : "📉"}</span>
+											</div>
+											<div>
+												<p className="font-medium text-[var(--text-primary)]">{t.description}</p>
+												<p className="text-sm text-[var(--text-secondary)]">
+													{new Date(t.date).toLocaleDateString("pt-BR")} • {t.category}
+												</p>
+											</div>
+										</div>
+										<p
+											className={`font-semibold tabular-nums ${t.type === "income" ? "text-emerald-400" : "text-pink-400"}`}
+										>
+											{t.type === "income" ? "+" : "-"}
+											{formatCurrency(t.amount)}
+										</p>
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="text-center py-8">
+								<p className="text-[var(--text-secondary)] mb-4">Nenhuma transação registrada</p>
+								<Link
+									href="/transactions"
+									className="inline-block px-6 py-3 bg-[var(--accent-primary)] text-white rounded-xl shadow-[0_0_20px_var(--accent-glow)] hover:opacity-90 transition-all font-semibold"
+								>
+									Adicionar Transação
+								</Link>
+							</div>
 						)}
 					</div>
 				</div>
 
-				{/* Recent Transactions */}
-				<div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
-					<div className="flex items-center justify-between mb-6">
-						<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">Transações Recentes</h2>
-						<Link
-							href="/transactions"
-							className="text-sm font-medium text-yellow-400 hover:text-yellow-300 transition-colors"
-						>
-							Ver todas →
-						</Link>
-					</div>
-
-					{recentTransactions.length > 0 ? (
-						<div className="space-y-2">
-							{recentTransactions.map((t) => (
-								<div
-									key={t.id}
-									className="flex items-center justify-between p-4 rounded-lg hover:bg-slate-800/50 transition-all border border-slate-800 hover:border-slate-700"
-								>
-									<div className="flex items-center gap-3">
-										<div
-											className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-												t.type === "income" ? "bg-green-500/10" : "bg-red-500/10"
-											}`}
-										>
-											<span className="text-lg">{t.type === "income" ? "📈" : "📉"}</span>
-										</div>
-										<div>
-											<p className="font-medium text-gray-100">{t.description}</p>
-											<p className="text-sm text-gray-400">
-												{new Date(t.date).toLocaleDateString("pt-BR")} • {t.category}
-											</p>
-										</div>
-									</div>
-									<p
-										className={`font-semibold tabular-nums ${t.type === "income" ? "text-green-400" : "text-red-400"}`}
-									>
-										{t.type === "income" ? "+" : "-"}
-										{formatCurrency(t.amount)}
-									</p>
-								</div>
-							))}
-						</div>
-					) : (
-						<div className="text-center py-8">
-							<p className="text-gray-400 mb-4">Nenhuma transação registrada</p>
-							<Link
-								href="/transactions"
-								className="inline-block px-6 py-3 bg-yellow-500 text-slate-950 rounded-lg hover:bg-yellow-400 transition-all font-semibold"
-							>
-								Adicionar Transação
-							</Link>
-						</div>
-					)}
+				{/* Fourth row: AI Insights */}
+				<div className="mb-8">
+					<SpendingInsights userId={userId} currentMonth={currentMonth} />
 				</div>
 			</div>
 		</div>
