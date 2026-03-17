@@ -1,91 +1,121 @@
 @import "tailwindcss";
 
+:root {
+  --bg-base: #0a0a1a;
+  --bg-deep: #1a1035;
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --bg-glass-hover: rgba(255, 255, 255, 0.06);
+  --bg-glass-elevated: rgba(255, 255, 255, 0.08);
+  --bg-glass-subtle: rgba(255, 255, 255, 0.02);
+
+  --text-primary: #f0eef6;
+  --text-secondary: #a8a3b8;
+  --text-muted: #6b6580;
+
+  --accent-primary: #8b5cf6;
+  --accent-primary-hover: #a78bfa;
+  --accent-glow: rgba(139, 92, 246, 0.2);
+  --accent-income: #34d399;
+  --accent-expense: #f472b6;
+  --accent-info: #60a5fa;
+  --accent-warning: #fbbf24;
+
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-hover: rgba(255, 255, 255, 0.15);
+  --border-accent: rgba(139, 92, 246, 0.3);
+}
+
 @layer base {
-	:root,
-	html.dark {
-		/* Dark mode sempre - Inspirado em Notion/Linear */
-		--bg-primary: 17 24 39; /* gray-900 */
-		--bg-secondary: 31 41 55; /* gray-800 */
-		--bg-tertiary: 55 65 81; /* gray-700 */
-		--bg-hover: 75 85 99; /* subtle hover */
+  html, body {
+    @apply min-h-screen;
+    background: linear-gradient(135deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+    color: var(--text-primary);
+  }
 
-		--text-primary: 243 244 246; /* gray-100 */
-		--text-secondary: 209 213 219; /* gray-300 */
-		--text-tertiary: 156 163 175; /* gray-400 */
+  * {
+    @apply box-border;
+  }
 
-		--border-primary: 55 65 81; /* gray-700 */
-		--border-secondary: 75 85 99; /* gray-600 */
+  button {
+    @apply cursor-pointer;
+  }
 
-		--accent-blue: 96 165 250; /* blue-400 */
-		--accent-purple: 167 139 250; /* violet-400 */
-		--accent-green: 74 222 128; /* green-400 */
-		--accent-red: 248 113 113; /* red-400 */
-		--accent-amber: 251 191 36; /* amber-400 */
-	}
+  input, select, textarea {
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    border-color: var(--border-glass);
+  }
 
-	html,
-	body {
-		@apply min-h-screen transition-colors duration-200;
-		background-color: rgb(var(--bg-secondary));
-		color: rgb(var(--text-primary));
-	}
+  input::placeholder, select::placeholder, textarea::placeholder {
+    color: var(--text-muted);
+  }
 
-	* {
-		@apply box-border;
-	}
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+}
 
-	button {
-		@apply cursor-pointer transition-colors duration-150;
-	}
+.glass {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  transition: all 200ms ease;
+}
 
-	/* Input and Select styles */
-	input,
-	select,
-	textarea {
-		background-color: rgb(var(--bg-primary));
-		color: rgb(var(--text-primary));
-		border-color: rgb(var(--border-primary));
-	}
+.glass-hover:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-glass-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
 
-	input::placeholder,
-	select::placeholder,
-	textarea::placeholder {
-		color: rgb(var(--text-tertiary));
-	}
+.glass-elevated {
+  background: var(--bg-glass-elevated);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(24px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
 
-	input:focus,
-	select:focus,
-	textarea:focus {
-		outline: none;
-		border-color: rgb(var(--accent-blue));
-	}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
-	/* Card styles */
-	.card {
-		background-color: rgb(var(--bg-primary));
-		border-color: rgb(var(--border-primary));
-		@apply rounded-lg shadow-sm;
-	}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(139, 92, 246, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
 
-	/* Button styles */
-	.btn-primary {
-		background-color: rgb(var(--accent-blue));
-		color: white;
-		@apply px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity;
-	}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
 
-	.btn-secondary {
-		background-color: rgb(var(--bg-tertiary));
-		color: rgb(var(--text-primary));
-		@apply px-4 py-2 rounded-lg font-medium hover:opacity-80 transition-opacity;
-	}
+.animate-slide-in {
+  animation: slide-in-left 0.2s ease-out;
+}
 
-	/* Container */
-	.container {
-		@apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;
-	}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 0.3s ease-out;
 }
 
 .dark {
-	color-scheme: dark;
+  color-scheme: dark;
 }

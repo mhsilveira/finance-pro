@@ -1,12 +1,11 @@
-// src/app/layout.tsx
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { Poppins } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { QueryProvider } from "@/components/QueryProvider";
+import { AppShell } from "@/components/AppShell";
 
-const poppins = Poppins({
-	weight: ["300", "400", "500", "600", "700"],
+const spaceGrotesk = Space_Grotesk({
+	weight: ["400", "500", "600", "700"],
 	subsets: ["latin"],
 	display: "swap",
 });
@@ -19,11 +18,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="pt-BR" suppressHydrationWarning>
-			<body className={poppins.className}>
+			<body className={spaceGrotesk.className}>
 				<QueryProvider>
 					<ThemeProvider>
-						<Navbar />
-						{children}
+						<AppShell>{children}</AppShell>
 					</ThemeProvider>
 				</QueryProvider>
 			</body>
