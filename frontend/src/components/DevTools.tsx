@@ -18,7 +18,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 		setLoading(true);
 		try {
 			const sampleTransactions = [
-				// Receitas
 				{
 					description: "Salário Dezembro",
 					amount: 5500,
@@ -44,7 +43,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					origin: "CASH" as const,
 				},
 
-				// Despesas Fixas
 				{
 					description: "Aluguel",
 					amount: 1800,
@@ -78,7 +76,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					origin: "CASH" as const,
 				},
 
-				// Assinaturas
 				{
 					description: "Netflix",
 					amount: 55,
@@ -107,7 +104,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Alimentação
 				{
 					description: "Mercado Dia",
 					amount: 320,
@@ -153,7 +149,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Transporte
 				{
 					description: "Uber para o trabalho",
 					amount: 35,
@@ -182,7 +177,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Saúde
 				{
 					description: "Farmácia - Remédios",
 					amount: 125,
@@ -201,7 +195,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					origin: "CASH" as const,
 				},
 
-				// Educação
 				{
 					description: "Udemy - Curso React",
 					amount: 89.9,
@@ -221,7 +214,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Lazer
 				{
 					description: "Cinema - Ingressos",
 					amount: 78,
@@ -249,7 +241,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Compras
 				{
 					description: "Roupas - Zara",
 					amount: 340,
@@ -278,7 +269,6 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 					card: "Nubank",
 				},
 
-				// Gastos Gerais
 				{
 					description: "Manutenção Notebook",
 					amount: 150,
@@ -345,18 +335,18 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 			{!open ? (
 				<button
 					onClick={() => setOpen(true)}
-					className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3 shadow-lg transition-colors"
+					className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white rounded-full p-3 shadow-[0_0_20px_var(--accent-glow)] transition-colors"
 					title="Ferramentas de Desenvolvedor"
 				>
 					🛠️
 				</button>
 			) : (
-				<div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 p-4 min-w-[280px]">
+				<div className="glass-elevated rounded-xl shadow-2xl border border-[var(--border-glass)] p-4 min-w-[280px]">
 					<div className="flex items-center justify-between mb-4">
-						<h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">🛠️ Dev Tools</h3>
+						<h3 className="text-sm font-semibold text-[var(--text-primary)]">🛠️ Dev Tools</h3>
 						<button
 							onClick={() => setOpen(false)}
-							className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+							className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
 						>
 							✕
 						</button>
@@ -366,7 +356,7 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 						<button
 							onClick={seedData}
 							disabled={loading}
-							className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+							className="w-full px-4 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
 						>
 							<span>🌱</span>
 							<span>{loading ? "Criando..." : "Seed (30 transações)"}</span>
@@ -375,14 +365,14 @@ export function DevTools({ userId, onUpdate }: DevToolsProps) {
 						<button
 							onClick={clearAll}
 							disabled={loading}
-							className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+							className="w-full px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
 						>
 							<span>🗑️</span>
 							<span>{loading ? "Deletando..." : "Limpar Tudo"}</span>
 						</button>
 					</div>
 
-					<p className="text-xs text-gray-500 dark:text-gray-400 mt-3">Ferramentas apenas para desenvolvimento</p>
+					<p className="text-xs text-[var(--text-muted)] mt-3">Ferramentas apenas para desenvolvimento</p>
 				</div>
 			)}
 		</div>
