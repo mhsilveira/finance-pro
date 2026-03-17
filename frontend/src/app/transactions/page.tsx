@@ -4,12 +4,13 @@ import { useState, useMemo } from "react";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { ImportCSVModal, type CSVSource } from "@/components/ImportCSVModal";
+import { ReviewCategoriesModal, type ReviewItem } from "@/components/ReviewCategoriesModal";
 import { TransactionTable } from "@/components/TransactionTable";
 import { DevTools } from "@/components/DevTools";
 import { ManageCategoriesModal } from "@/components/ManageCategoriesModal";
-import type { Transaction } from "@/types/transaction";
+import type { Transaction, Category, CreateTransactionPayload } from "@/types/transaction";
 import { exportTransactionsToCSV, parseCSV } from "@/services/csv";
-import { reprocessCategories, getCategoryCorrections, batchCreateTransactions, getCategories } from "@/services/api";
+import { reprocessCategories, getCategoryCorrections, batchCreateTransactions, getCategories, aiCategorize } from "@/services/api";
 import {
 	Pagination,
 	PaginationContent,
@@ -34,26 +35,25 @@ import { usePersistedFilters } from "@/hooks/usePersistedFilters";
 export default function TransactionsPage() {
 	const [currentPage, setCurrentPage] = useState(1);
 
-	// Edit modal state
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [showEditModal, setShowEditModal] = useState(false);
 
-	// Import modal state
 	const [showImportModal, setShowImportModal] = useState(false);
 	const [importing, setImporting] = useState(false);
 
-	// Reprocess state
 	const [reprocessing, setReprocessing] = useState(false);
 
-	// Manage categories modal state
 	const [showCategoriesModal, setShowCategoriesModal] = useState(false);
 
-	// Persisted filters
+	const [showReviewModal, setShowReviewModal] = useState(false);
+	const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
+	const [pendingTransactions, setPendingTransactions] = useState<CreateTransactionPayload[]>([]);
+	const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+
 	const { filters, setFilters, resetFilters, hasActiveFilters, isLoaded } = usePersistedFilters();
 
 	const userId = "blanchimaah";
 
-	// React Query hooks
 	const {
 		data: paginatedData,
 		isLoading,
@@ -105,73 +105,125 @@ export default function TransactionsPage() {
 		try {
 			const text = await file.text();
 
-			// Fetch user corrections and category rules for smarter categorization
 			const [corrections, categories] = await Promise.all([
 				getCategoryCorrections(userId).catch(() => undefined),
 				getCategories().catch(() => undefined),
 			]);
 
-			// Parse CSV using the robust parser with source type, corrections, and DB categories
 			const newTransactions = parseCSV(text, source, corrections, categories);
 
-			console.log(`🔄 Starting batch import of ${newTransactions.length} transactions from ${source}...`);
-
-			const result = await batchCreateTransactions(newTransactions);
-
-			// Summary logging
-			console.log("\n" + "=".repeat(70));
-			console.log(`📊 IMPORT SUMMARY`);
-			console.log("=".repeat(70));
-			console.log(`✅ Success: ${result.success} transactions`);
-			console.log(`🔁 Duplicates skipped: ${result.duplicates || 0} transactions`);
-			console.log(`❌ Failed: ${result.failed} transactions`);
-			console.log(`📁 Source: ${source}`);
-			console.log("=".repeat(70));
-
-			const dupsMsg = result.duplicates ? `\n${result.duplicates} duplicatas ignoradas.` : "";
-
-			if (result.failed > 0 && result.errors.length > 0) {
-				console.log("\n🔍 DETAILED ERROR LOG:");
-				console.table(
-					result.errors.map((e) => ({
-						Index: e.index,
-						Error: e.error,
-					})),
-				);
-
-				const errors = result.errors.map((e) => ({
-					row: e.index + 2,
-					transaction: newTransactions[e.index],
-					error: e.error,
-				}));
-
-				const shouldDownload = confirm(
-					`Importação concluída!\n${result.success} transações importadas.${dupsMsg}\n${result.failed} erros encontrados.\n\n` +
-						`Deseja baixar o log de erros?`,
-				);
-
-				if (shouldDownload) {
-					downloadErrorLog(errors, source);
-				}
-			} else {
-				alert(`Importação concluída com sucesso!\n${result.success} transações importadas.${dupsMsg}`);
+			if (newTransactions.length === 0) {
+				alert("Nenhuma transação encontrada no arquivo.");
+				return;
 			}
 
-			await refetchTransactions();
-			setShowImportModal(false);
+			const uncategorizedIndexes = newTransactions
+				.map((t, i) => (t.category === "A Categorizar" ? i : -1))
+				.filter((i) => i !== -1);
+
+			let aiResults: { description: string; suggestedCategory: string; confidence: number }[] = [];
+
+			if (uncategorizedIndexes.length > 0) {
+				const uncategorizedDescriptions = uncategorizedIndexes.map((i) => newTransactions[i].description);
+				try {
+					aiResults = await aiCategorize(uncategorizedDescriptions);
+				} catch {
+					console.warn("AI categorization unavailable, skipping AI step");
+				}
+			}
+
+			const CONFIDENCE_THRESHOLD = 0.7;
+			const needsReview: ReviewItem[] = [];
+
+			for (const i of uncategorizedIndexes) {
+				const aiResult = aiResults.find((r) => r.description === newTransactions[i].description);
+				const confidence = aiResult?.confidence || 0;
+				const aiCategory = aiResult?.suggestedCategory || "";
+
+				if (aiResult && confidence >= CONFIDENCE_THRESHOLD && aiCategory !== "A Categorizar") {
+					newTransactions[i].category = aiCategory;
+				} else {
+					needsReview.push({
+						index: i,
+						description: newTransactions[i].description,
+						amount: String(newTransactions[i].amount),
+						date: newTransactions[i].date,
+						currentCategory: newTransactions[i].category,
+						aiSuggestedCategory: aiCategory,
+						confidence,
+					});
+				}
+			}
+
+			if (needsReview.length > 0 && categories && categories.length > 0) {
+				setPendingTransactions(newTransactions);
+				setReviewItems(needsReview);
+				setAvailableCategories(categories);
+				setShowImportModal(false);
+				setShowReviewModal(true);
+				setImporting(false);
+				return;
+			}
+
+			await submitTransactions(newTransactions, source);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Erro ao importar CSV";
-			console.error("❌ CRITICAL ERROR during CSV import:", err);
+			console.error("CRITICAL ERROR during CSV import:", err);
 			alert(errorMessage);
 		} finally {
 			setImporting(false);
 		}
 	};
 
-	// Helper function to download error log
+	const handleReviewConfirm = async (updatedCategories: Map<number, string>) => {
+		setImporting(true);
+		try {
+			const transactions = [...pendingTransactions];
+			for (const [index, category] of updatedCategories) {
+				transactions[index].category = category;
+			}
+			await submitTransactions(transactions, "REVIEW");
+			setShowReviewModal(false);
+			setPendingTransactions([]);
+			setReviewItems([]);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Erro ao importar";
+			alert(errorMessage);
+		} finally {
+			setImporting(false);
+		}
+	};
+
+	const submitTransactions = async (newTransactions: CreateTransactionPayload[], source: string) => {
+		const result = await batchCreateTransactions(newTransactions);
+
+		const dupsMsg = result.duplicates ? `\n${result.duplicates} duplicatas ignoradas.` : "";
+
+		if (result.failed > 0 && result.errors.length > 0) {
+			const errors = result.errors.map((e) => ({
+				row: e.index + 2,
+				transaction: newTransactions[e.index],
+				error: e.error,
+			}));
+
+			const shouldDownload = confirm(
+				`Importação concluída!\n${result.success} transações importadas.${dupsMsg}\n${result.failed} erros encontrados.\n\nDeseja baixar o log de erros?`,
+			);
+
+			if (shouldDownload) {
+				downloadErrorLog(errors, source);
+			}
+		} else {
+			alert(`Importação concluída com sucesso!\n${result.success} transações importadas.${dupsMsg}`);
+		}
+
+		await refetchTransactions();
+		setShowImportModal(false);
+	};
+
 	const downloadErrorLog = (
 		errors: Array<{ row: number; transaction: any; error: string }>,
-		source: CSVSource,
+		source: string,
 	) => {
 		const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 		const logContent = [
@@ -202,7 +254,6 @@ export default function TransactionsPage() {
 		URL.revokeObjectURL(url);
 	};
 
-	// Reprocess categories handler
 	const handleReprocessCategories = async () => {
 		if (
 			!confirm(
@@ -213,27 +264,26 @@ export default function TransactionsPage() {
 		}
 
 		setReprocessing(true);
-		console.log("🔄 Starting category reprocessing...");
+		console.log("Starting category reprocessing...");
 
 		try {
 			const result = await reprocessCategories(userId);
 
-			console.log("✅ Reprocessing complete:");
+			console.log("Reprocessing complete:");
 			console.log(`   Total: ${result.total} transactions`);
 			console.log(`   Updated: ${result.updated} transactions`);
 			console.log(`   Unchanged: ${result.unchanged} transactions`);
 
 			alert(
-				`✅ Categorias reprocessadas com sucesso!\n\n` +
+				`Categorias reprocessadas com sucesso!\n\n` +
 					`Total: ${result.total} transações\n` +
 					`Atualizadas: ${result.updated}\n` +
 					`Sem alteração: ${result.unchanged}`,
 			);
 
-			// Refetch transactions to show updated categories
 			await refetchTransactions();
 		} catch (error) {
-			console.error("❌ Error reprocessing categories:", error);
+			console.error("Error reprocessing categories:", error);
 			alert(
 				`Erro ao reprocessar categorias:\n${error instanceof Error ? error.message : "Erro desconhecido"}`,
 			);
@@ -242,10 +292,8 @@ export default function TransactionsPage() {
 		}
 	};
 
-	// Use server-side stats when only month filters are active (no text/type/category/origin/card filters)
 	const hasClientFilters = !!(filters.searchTerm || filters.typeFilter !== "all" || filters.categoryFilter !== "all" || filters.originFilter !== "all" || filters.cardFilter !== "all");
 
-	// Memoize filtered transactions — only recompute when allTransactions or filters change
 	const filteredTransactions = useMemo(() => {
 		return allTransactions.filter((t) => {
 			if (filters.searchTerm && !t.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) return false;
@@ -260,7 +308,6 @@ export default function TransactionsPage() {
 		});
 	}, [allTransactions, filters.searchTerm, filters.typeFilter, filters.categoryFilter, filters.originFilter, filters.cardFilter, filters.monthFrom, filters.monthTo]);
 
-	// Memoize dropdown options — only recompute when allTransactions changes
 	const uniqueCategories = useMemo(
 		() => Array.from(new Set(allTransactions.map((t) => t.category).filter(Boolean))),
 		[allTransactions],
@@ -270,7 +317,6 @@ export default function TransactionsPage() {
 		[allTransactions],
 	);
 
-	// Memoize stats — avoid 3x filter().reduce() on every render
 	const stats = useMemo(() => {
 		if (!hasClientFilters && serverStats) {
 			return { total: serverStats.totalCount, income: serverStats.income, expense: serverStats.expense };
@@ -284,7 +330,6 @@ export default function TransactionsPage() {
 		return { total: filteredTransactions.length, income, expense };
 	}, [hasClientFilters, serverStats, filteredTransactions]);
 
-	// Transactions to display (either paginated or filtered)
 	const displayTransactions = hasActiveFilters ? filteredTransactions : paginatedData?.data || [];
 
 	const formatCurrency = (value: number) => {
@@ -295,22 +340,20 @@ export default function TransactionsPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-slate-950 pt-4">
+		<div className="min-h-screen animate-fade-in">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-				{/* Header */}
 				<div className="mb-8">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
-							<h1 className="text-4xl font-bold text-gray-100">Transações</h1>
-							<p className="mt-2 text-gray-400">Gerencie suas receitas e despesas de forma inteligente</p>
+							<h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Transações</h1>
+							<p className="mt-2 text-[var(--text-secondary)]">Gerencie suas receitas e despesas de forma inteligente</p>
 						</div>
 						<div className="flex flex-wrap gap-2">
-							{/* Export/Import Buttons */}
 							<Button
 								onClick={handleExport}
 								disabled={allTransactions.length === 0}
 								variant="outline"
-								className="hover:border-green-500/50"
+								className="hover:border-emerald-500/30"
 							>
 								<span>📥</span>
 								<span>Exportar CSV</span>
@@ -320,7 +363,7 @@ export default function TransactionsPage() {
 								onClick={handleImportClick}
 								disabled={importing}
 								variant="outline"
-								className="hover:border-yellow-500/50"
+								className="hover:border-purple-500/30"
 							>
 								<span>📤</span>
 								<span>{importing ? "Importando..." : "Importar CSV"}</span>
@@ -350,17 +393,16 @@ export default function TransactionsPage() {
 					</div>
 				</div>
 
-				{/* Filters Section */}
 				{!loading && !error && allTransactions.length > 0 && (
-					<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 mb-8">
+					<div className="glass p-6 mb-8">
 						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-lg font-semibold text-gray-100 uppercase tracking-wide">Filtros</h2>
+							<h2 className="text-lg font-semibold text-[var(--text-primary)]">Filtros</h2>
 							{hasActiveFilters && (
 								<Button
 									onClick={resetFilters}
 									variant="ghost"
 									size="sm"
-									className="text-yellow-400 hover:text-yellow-300"
+									className="text-purple-400 hover:text-purple-300"
 								>
 									Limpar filtros
 								</Button>
@@ -368,9 +410,8 @@ export default function TransactionsPage() {
 						</div>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-							{/* Search */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Buscar</label>
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Buscar</label>
 								<Input
 									type="text"
 									value={filters.searchTerm}
@@ -379,9 +420,8 @@ export default function TransactionsPage() {
 								/>
 							</div>
 
-							{/* Type Filter */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Tipo</label>
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Tipo</label>
 								<Select
 									value={filters.typeFilter}
 									onChange={(e) => setFilters({ typeFilter: e.target.value as "all" | "income" | "expense" })}
@@ -392,9 +432,8 @@ export default function TransactionsPage() {
 								</Select>
 							</div>
 
-							{/* Category Filter */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 									Categoria
 								</label>
 								<Select value={filters.categoryFilter} onChange={(e) => setFilters({ categoryFilter: e.target.value })}>
@@ -407,9 +446,8 @@ export default function TransactionsPage() {
 								</Select>
 							</div>
 
-							{/* Origin Filter */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Origem</label>
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Origem</label>
 								<Select
 									value={filters.originFilter}
 									onChange={(e) => setFilters({ originFilter: e.target.value as "all" | "CREDIT_CARD" | "CASH" })}
@@ -420,9 +458,8 @@ export default function TransactionsPage() {
 								</Select>
 							</div>
 
-							{/* Card Filter */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Cartão</label>
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Cartão</label>
 								<Select value={filters.cardFilter} onChange={(e) => setFilters({ cardFilter: e.target.value })}>
 									<option value="all">Todos</option>
 									{uniqueCards.map((card) => (
@@ -433,9 +470,8 @@ export default function TransactionsPage() {
 								</Select>
 							</div>
 
-							{/* Month Range - De */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 									Período De
 								</label>
 								<Input
@@ -447,9 +483,8 @@ export default function TransactionsPage() {
 								/>
 							</div>
 
-							{/* Month Range - Até */}
 							<div>
-								<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+								<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 									Período Até
 								</label>
 								<Input
@@ -463,25 +498,24 @@ export default function TransactionsPage() {
 						</div>
 
 						{hasActiveFilters && (
-							<div className="mt-4 text-sm text-gray-400">
-								Exibindo <span className="text-yellow-400 font-semibold tabular-nums">{stats.total}</span> de{" "}
+							<div className="mt-4 text-sm text-[var(--text-secondary)]">
+								Exibindo <span className="text-purple-400 font-semibold tabular-nums">{stats.total}</span> de{" "}
 								<span className="tabular-nums">{allTransactions.length}</span> transações
 							</div>
 						)}
 					</div>
 				)}
 
-				{/* Stats Cards */}
 				{!loading && !error && allTransactions.length > 0 && (
 					<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-slate-700 transition-all">
+						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Total</p>
-									<p className="text-2xl font-semibold text-gray-100 mt-2 tabular-nums">{stats.total}</p>
+									<p className="text-sm font-medium text-[var(--text-muted)]">Total</p>
+									<p className="text-2xl font-semibold text-[var(--text-primary)] mt-2 tabular-nums">{stats.total}</p>
 								</div>
-								<div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center">
-									<svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path
 											strokeLinecap="round"
 											strokeLinejoin="round"
@@ -493,32 +527,32 @@ export default function TransactionsPage() {
 							</div>
 						</div>
 
-						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-green-500/30 transition-all">
+						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Receitas</p>
-									<p className="text-2xl font-semibold text-green-400 mt-2 tabular-nums">
+									<p className="text-sm font-medium text-[var(--text-muted)]">Receitas</p>
+									<p className="text-2xl font-semibold text-emerald-400 mt-2 tabular-nums">
 										{formatCurrency(stats.income)}
 									</p>
 								</div>
-								<div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-									<svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11l5-5m0 0l5 5m-5-5v12" />
 									</svg>
 								</div>
 							</div>
 						</div>
 
-						<div className="bg-slate-900 border border-slate-800 rounded-lg p-6 hover:border-red-500/30 transition-all">
+						<div className="glass glass-hover p-6">
 							<div className="flex items-center justify-between">
 								<div>
-									<p className="text-sm font-medium text-gray-400 uppercase tracking-wide">Despesas</p>
-									<p className="text-2xl font-semibold text-red-400 mt-2 tabular-nums">
+									<p className="text-sm font-medium text-[var(--text-muted)]">Despesas</p>
+									<p className="text-2xl font-semibold text-pink-400 mt-2 tabular-nums">
 										{formatCurrency(stats.expense)}
 									</p>
 								</div>
-								<div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
-									<svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<div className="w-12 h-12 bg-pink-500/10 rounded-lg flex items-center justify-center">
+									<svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
 									</svg>
 								</div>
@@ -528,15 +562,13 @@ export default function TransactionsPage() {
 						</div>
 				)}
 
-				{/* Loading state */}
 				{loading && <TableSkeleton rows={10} />}
 
-				{/* Error state */}
 				{error && !loading && (
-					<div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 mb-6">
+					<div className="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6 mb-6">
 						<div className="flex items-start">
 							<div className="flex-shrink-0">
-								<svg className="h-6 w-6 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+								<svg className="h-6 w-6 text-pink-400" viewBox="0 0 20 20" fill="currentColor">
 									<path
 										fillRule="evenodd"
 										d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -545,13 +577,13 @@ export default function TransactionsPage() {
 								</svg>
 							</div>
 							<div className="ml-3 flex-1">
-								<h3 className="text-base font-semibold text-red-400">Erro ao carregar transações</h3>
-								<div className="mt-2 text-sm text-red-300">{error}</div>
+								<h3 className="text-base font-semibold text-pink-400">Erro ao carregar transações</h3>
+								<div className="mt-2 text-sm text-pink-300">{error}</div>
 								<Button
 									onClick={refetchTransactions}
 									variant="outline"
 									size="sm"
-									className="mt-4 bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30"
+									className="mt-4 bg-pink-500/20 border-pink-500/50 text-pink-400 hover:bg-pink-500/30"
 								>
 									Tentar novamente
 								</Button>
@@ -560,19 +592,16 @@ export default function TransactionsPage() {
 					</div>
 				)}
 
-				{/* Table */}
 				{!loading && !error && (
 					<>
 						{displayTransactions.length > 0 ? (
 							<>
 								<TransactionTable transactions={displayTransactions} onDelete={handleDelete} onEdit={handleEdit} />
 
-								{/* Pagination - only show when no filters are active */}
 								{!hasActiveFilters && paginatedData && (
 									<div className="mt-6">
-										{/* Page size selector */}
 										<div className="flex items-center justify-between mb-4">
-											<div className="flex items-center gap-2 text-sm text-gray-400">
+											<div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
 												<span>Exibir</span>
 												<Select
 													value={filters.pageSize.toString()}
@@ -585,6 +614,9 @@ export default function TransactionsPage() {
 													<option value="5">5</option>
 													<option value="10">10</option>
 													<option value="25">25</option>
+													<option value="50">50</option>
+													<option value="100">100</option>
+													<option value="9999">Todas</option>
 												</Select>
 												<span>itens por página</span>
 											</div>
@@ -602,7 +634,6 @@ export default function TransactionsPage() {
 															/>
 														</PaginationItem>
 
-														{/* Page numbers logic */}
 														{(() => {
 															const { totalPages } = paginatedData.pagination;
 															const pages: (number | "ellipsis")[] = [];
@@ -667,8 +698,7 @@ export default function TransactionsPage() {
 											</div>
 										)}
 
-										{/* Pagination info */}
-										<div className="mt-4 text-center text-sm text-gray-400">
+										<div className="mt-4 text-center text-sm text-[var(--text-secondary)]">
 											Exibindo {(currentPage - 1) * filters.pageSize + 1}-
 											{Math.min(currentPage * filters.pageSize, paginatedData.pagination.total)} de{" "}
 											{paginatedData.pagination.total} transações
@@ -677,8 +707,8 @@ export default function TransactionsPage() {
 								)}
 							</>
 						) : (
-							<div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center">
-								<p className="text-gray-400 mb-4">
+							<div className="glass p-12 text-center">
+								<p className="text-[var(--text-secondary)] mb-4">
 									{hasActiveFilters
 										? "Nenhuma transação encontrada com os filtros aplicados"
 										: "Nenhuma transação encontrada"}
@@ -690,10 +720,8 @@ export default function TransactionsPage() {
 				)}
 			</div>
 
-			{/* Dev Tools - Botão flutuante */}
 			<DevTools userId={userId} onUpdate={refetchTransactions} />
 
-			{/* Edit Transaction Modal */}
 			{editingTransaction && (
 				<EditTransactionModal
 					transaction={editingTransaction}
@@ -704,7 +732,6 @@ export default function TransactionsPage() {
 				/>
 			)}
 
-			{/* Import CSV Modal */}
 			<ImportCSVModal
 				isOpen={showImportModal}
 				onClose={() => setShowImportModal(false)}
@@ -712,10 +739,22 @@ export default function TransactionsPage() {
 				isImporting={importing}
 			/>
 
-			{/* Manage Categories Modal */}
 			<ManageCategoriesModal
 				open={showCategoriesModal}
 				onOpenChange={setShowCategoriesModal}
+			/>
+
+			<ReviewCategoriesModal
+				isOpen={showReviewModal}
+				onClose={() => {
+					setShowReviewModal(false);
+					setPendingTransactions([]);
+					setReviewItems([]);
+				}}
+				items={reviewItems}
+				categories={availableCategories}
+				onConfirm={handleReviewConfirm}
+				isSubmitting={importing}
 			/>
 		</div>
 	);
