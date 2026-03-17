@@ -5,11 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Upload, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 
-export type CSVSource =
-	| "NUBANK_CHECKING"
-	| "NUBANK_CREDIT"
-	| "ITAU_CHECKING"
-	| "ITAU_CREDIT";
+export type CSVSource = "NUBANK_CREDIT" | "ITAU_CREDIT";
 
 interface ImportCSVModalProps {
 	isOpen: boolean;
@@ -20,7 +16,6 @@ interface ImportCSVModalProps {
 
 export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: ImportCSVModalProps) {
 	const [selectedBank, setSelectedBank] = useState<"Nubank" | "Itaú">("Nubank");
-	const [accountType, setAccountType] = useState<"CHECKING" | "CREDIT">("CREDIT");
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,8 +32,7 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 			return;
 		}
 
-		// Build source identifier from bank and account type
-		const source: CSVSource = `${selectedBank.toUpperCase().replace("Ú", "U")}_${accountType}` as CSVSource;
+		const source: CSVSource = `${selectedBank.toUpperCase().replace("Ú", "U")}_CREDIT` as CSVSource;
 		onImport(selectedFile, source);
 	};
 
@@ -46,7 +40,6 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 		if (!isImporting) {
 			setSelectedFile(null);
 			setSelectedBank("Nubank");
-			setAccountType("CREDIT");
 			onClose();
 		}
 	};
@@ -55,20 +48,19 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 		<Dialog.Root open={isOpen} onOpenChange={handleClose}>
 			<Dialog.Portal>
 				<Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
-				<Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md z-50 shadow-2xl">
-					<Dialog.Title className="text-2xl font-bold text-gray-100 mb-4">Importar Extrato</Dialog.Title>
+				<Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 glass-elevated rounded-[20px] shadow-[0_24px_48px_rgba(0,0,0,0.5)] p-6 w-full max-w-md z-50">
+					<Dialog.Title className="text-xl font-semibold text-[var(--text-primary)] mb-4">Importar Fatura</Dialog.Title>
 
 					<Dialog.Close
-						className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 transition-colors"
+						className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
 						disabled={isImporting}
 					>
 						<X size={24} />
 					</Dialog.Close>
 
 					<div className="space-y-5">
-						{/* Bank Selection */}
 						<div>
-							<label className="block text-sm font-medium text-gray-300 mb-2">Banco</label>
+							<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Banco</label>
 							<div className="grid grid-cols-2 gap-3">
 								<button
 									type="button"
@@ -77,7 +69,7 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 									className={`p-3 rounded-lg border-2 transition-all ${
 										selectedBank === "Nubank"
 											? "border-purple-500 bg-purple-500/10 text-purple-400"
-											: "border-slate-700 bg-slate-800 text-gray-400 hover:border-slate-600"
+											: "border-[var(--border-glass)] bg-white/5 text-[var(--text-secondary)] hover:border-[var(--border-glass-hover)]"
 									} ${isImporting ? "opacity-50 cursor-not-allowed" : ""}`}
 								>
 									<div className="text-sm font-medium">Nubank</div>
@@ -89,7 +81,7 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 									className={`p-3 rounded-lg border-2 transition-all ${
 										selectedBank === "Itaú"
 											? "border-purple-500 bg-purple-500/10 text-purple-400"
-											: "border-slate-700 bg-slate-800 text-gray-400 hover:border-slate-600"
+											: "border-[var(--border-glass)] bg-white/5 text-[var(--text-secondary)] hover:border-[var(--border-glass-hover)]"
 									} ${isImporting ? "opacity-50 cursor-not-allowed" : ""}`}
 								>
 									<div className="text-sm font-medium">Itaú</div>
@@ -97,42 +89,8 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 							</div>
 						</div>
 
-						{/* Account Type Selection */}
 						<div>
-							<label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Conta</label>
-							<div className="grid grid-cols-2 gap-3">
-								<button
-									type="button"
-									onClick={() => setAccountType("CHECKING")}
-									disabled={isImporting}
-									className={`p-3 rounded-lg border-2 transition-all ${
-										accountType === "CHECKING"
-											? "border-blue-500 bg-blue-500/10 text-blue-400"
-											: "border-slate-700 bg-slate-800 text-gray-400 hover:border-slate-600"
-									} ${isImporting ? "opacity-50 cursor-not-allowed" : ""}`}
-								>
-									<div className="text-sm font-medium">Conta Corrente</div>
-									<div className="text-xs text-gray-500 mt-1">(Extrato)</div>
-								</button>
-								<button
-									type="button"
-									onClick={() => setAccountType("CREDIT")}
-									disabled={isImporting}
-									className={`p-3 rounded-lg border-2 transition-all ${
-										accountType === "CREDIT"
-											? "border-blue-500 bg-blue-500/10 text-blue-400"
-											: "border-slate-700 bg-slate-800 text-gray-400 hover:border-slate-600"
-									} ${isImporting ? "opacity-50 cursor-not-allowed" : ""}`}
-								>
-									<div className="text-sm font-medium">Cartão de Crédito</div>
-									<div className="text-xs text-gray-500 mt-1">(Fatura)</div>
-								</button>
-							</div>
-						</div>
-
-						{/* File Upload */}
-						<div>
-							<label className="block text-sm font-medium text-gray-300 mb-2">Arquivo CSV</label>
+							<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Arquivo CSV</label>
 							<div className="space-y-3">
 								<input
 									ref={fileInputRef}
@@ -153,15 +111,14 @@ export function ImportCSVModal({ isOpen, onClose, onImport, isImporting }: Impor
 									<span>Selecionar Arquivo</span>
 								</Button>
 								{selectedFile && (
-									<div className="flex items-center gap-2 p-3 bg-slate-800 border border-slate-700 rounded-lg">
-										<FileText size={18} className="text-blue-400" />
-										<span className="text-sm text-gray-300 truncate">{selectedFile.name}</span>
+									<div className="flex items-center gap-2 p-3 bg-white/5 border border-[var(--border-glass)] rounded-xl">
+										<FileText size={18} className="text-purple-400" />
+										<span className="text-sm text-[var(--text-secondary)] truncate">{selectedFile.name}</span>
 									</div>
 								)}
 							</div>
 						</div>
 
-						{/* Action Buttons */}
 						<div className="flex gap-3 pt-2">
 							<Button type="button" onClick={handleClose} disabled={isImporting} variant="outline" className="flex-1">
 								<span>Cancelar</span>

@@ -40,7 +40,6 @@ export function EditTransactionModal({
 		card: transaction.card || "",
 	});
 
-	// Update form when transaction changes
 	useEffect(() => {
 		setFormData({
 			description: transaction.description,
@@ -70,7 +69,6 @@ export function EditTransactionModal({
 
 			await updateMutation.mutateAsync({ id: transaction.id, userId, payload });
 
-			// Save category correction if the user changed the category
 			if (formData.category !== transaction.category && formData.description) {
 				saveCategoryCorrection(userId, formData.description, formData.category).catch((err) =>
 					console.warn("Failed to save category correction:", err),
@@ -93,14 +91,14 @@ export function EditTransactionModal({
 			<Dialog.Portal>
 				<Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" />
 
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto z-50">
-					<Dialog.Title className="text-2xl font-bold text-gray-100 mb-6 uppercase tracking-wide">
+				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass-elevated rounded-[20px] shadow-[0_24px_48px_rgba(0,0,0,0.5)] p-6 w-full max-w-md max-h-[90vh] overflow-y-auto z-50">
+					<Dialog.Title className="text-xl font-semibold text-[var(--text-primary)] mb-6">
 						Editar Transação
 					</Dialog.Title>
 
 					<Dialog.Close asChild>
 						<button
-							className="absolute top-4 right-4 text-gray-400 hover:text-gray-100 transition-colors"
+							className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
 							aria-label="Fechar"
 						>
 							<Cross2Icon className="w-5 h-5" />
@@ -108,11 +106,10 @@ export function EditTransactionModal({
 					</Dialog.Close>
 
 					<form onSubmit={handleSubmit} className="space-y-4">
-						{/* Descrição */}
 						<div>
 							<label
 								htmlFor="description"
-								className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide"
+								className="block text-sm font-medium text-[var(--text-secondary)] mb-2"
 							>
 								Descrição *
 							</label>
@@ -126,9 +123,8 @@ export function EditTransactionModal({
 							/>
 						</div>
 
-						{/* Valor */}
 						<div>
-							<label htmlFor="amount" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+							<label htmlFor="amount" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 								Valor (R$) *
 							</label>
 							<Input
@@ -143,9 +139,8 @@ export function EditTransactionModal({
 							/>
 						</div>
 
-						{/* Tipo */}
 						<div>
-							<label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">Tipo *</label>
+							<label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Tipo *</label>
 							<div className="flex gap-4">
 								<label className="flex items-center gap-2 cursor-pointer">
 									<input
@@ -154,9 +149,9 @@ export function EditTransactionModal({
 										value="expense"
 										checked={formData.type === "expense"}
 										onChange={(e) => handleChange("type", e.target.value)}
-										className="w-4 h-4 text-yellow-500 accent-yellow-500"
+										className="w-4 h-4 text-purple-500 accent-purple-500"
 									/>
-									<span className="text-sm text-gray-100">Despesa</span>
+									<span className="text-sm text-[var(--text-primary)]">Despesa</span>
 								</label>
 								<label className="flex items-center gap-2 cursor-pointer">
 									<input
@@ -165,16 +160,15 @@ export function EditTransactionModal({
 										value="income"
 										checked={formData.type === "income"}
 										onChange={(e) => handleChange("type", e.target.value)}
-										className="w-4 h-4 text-yellow-500 accent-yellow-500"
+										className="w-4 h-4 text-purple-500 accent-purple-500"
 									/>
-									<span className="text-sm text-gray-100">Receita</span>
+									<span className="text-sm text-[var(--text-primary)]">Receita</span>
 								</label>
 							</div>
 						</div>
 
-						{/* Origem */}
 						<div>
-							<label htmlFor="origin" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+							<label htmlFor="origin" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 								Origem *
 							</label>
 							<Select id="origin" value={formData.origin} onChange={(e) => handleChange("origin", e.target.value)}>
@@ -183,10 +177,9 @@ export function EditTransactionModal({
 							</Select>
 						</div>
 
-						{/* Card (condicional) */}
 						{formData.origin === "CREDIT_CARD" && (
 							<div>
-								<label htmlFor="card" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+								<label htmlFor="card" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 									Cartão
 								</label>
 								<Input
@@ -199,11 +192,10 @@ export function EditTransactionModal({
 							</div>
 						)}
 
-						{/* Categoria */}
 						<div>
 							<label
 								htmlFor="category"
-								className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide"
+								className="block text-sm font-medium text-[var(--text-secondary)] mb-2"
 							>
 								Categoria *
 							</label>
@@ -229,9 +221,8 @@ export function EditTransactionModal({
 							</Select>
 						</div>
 
-						{/* Data */}
 						<div>
-							<label htmlFor="date" className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wide">
+							<label htmlFor="date" className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
 								Data *
 							</label>
 							<Input
@@ -243,12 +234,10 @@ export function EditTransactionModal({
 							/>
 						</div>
 
-						{/* Error message */}
 						{error && (
-							<div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>
+							<div className="p-3 bg-pink-500/10 border border-pink-500/30 rounded-xl text-pink-400 text-sm">{error}</div>
 						)}
 
-						{/* Actions */}
 						<div className="flex gap-3 pt-4">
 							<Dialog.Close asChild>
 								<Button type="button" variant="outline" className="flex-1">

@@ -130,8 +130,8 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 
 	const typeBadgeColor = (type: string) => {
 		switch (type) {
-			case "income": return "bg-green-500/20 text-green-400";
-			case "expense": return "bg-red-500/20 text-red-400";
+			case "income": return "bg-emerald-500/15 text-emerald-400";
+			case "expense": return "bg-pink-500/15 text-pink-400";
 			case "both": return "bg-blue-500/20 text-blue-400";
 			default: return "bg-gray-500/20 text-gray-400";
 		}
@@ -141,21 +141,20 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
 			<Dialog.Portal>
 				<Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
-				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
-					<Dialog.Title className="text-2xl font-bold text-gray-100 mb-6 uppercase tracking-wide">
+				<Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 glass-elevated rounded-[20px] shadow-[0_24px_48px_rgba(0,0,0,0.5)] p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+					<Dialog.Title className="text-xl font-semibold text-[var(--text-primary)] mb-6">
 						Gerenciar Categorias
 					</Dialog.Title>
 
 					<Dialog.Close asChild>
 						<button
-							className="absolute top-4 right-4 text-gray-400 hover:text-gray-100 transition-colors"
+							className="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
 							aria-label="Fechar"
 						>
 							<Cross2Icon className="w-5 h-5" />
 						</button>
 					</Dialog.Close>
 
-					{/* Filter + Add button */}
 					<div className="flex items-center justify-between mb-4 gap-4">
 						<Select
 							value={filter}
@@ -175,17 +174,16 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 						)}
 					</div>
 
-					{/* Add/Edit Form */}
 					{showForm && (
-						<form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4 space-y-3">
-							<h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+						<form onSubmit={handleSubmit} className="bg-white/5 border border-[var(--border-glass)] rounded-xl p-4 mb-4 space-y-3">
+							<h3 className="text-sm font-semibold text-[var(--text-secondary)]">
 								{editing ? "Editar Categoria" : "Nova Categoria"}
 							</h3>
 
 							<div className="grid grid-cols-2 gap-3">
 								{!editing && (
 									<div>
-										<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Chave</label>
+										<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Chave</label>
 										<Input
 											type="text"
 											value={formData.key}
@@ -196,7 +194,7 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 									</div>
 								)}
 								<div className={editing ? "col-span-2" : ""}>
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Nome</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Nome</label>
 									<Input
 										type="text"
 										value={formData.name}
@@ -209,7 +207,7 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 
 							<div className="grid grid-cols-3 gap-3">
 								<div>
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Tipo</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Tipo</label>
 									<Select
 										value={formData.type}
 										onChange={(e) => setFormData((p) => ({ ...p, type: e.target.value as typeof formData.type }))}
@@ -220,7 +218,7 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 									</Select>
 								</div>
 								<div>
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Icone</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Icone</label>
 									<Input
 										type="text"
 										value={formData.icon}
@@ -229,7 +227,7 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 									/>
 								</div>
 								<div>
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Cor</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Cor</label>
 									<div className="flex gap-2">
 										<Input
 											type="color"
@@ -249,17 +247,17 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 
 							<div className="grid grid-cols-4 gap-3">
 								<div className="col-span-3">
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Palavras-chave</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Palavras-chave</label>
 									<Input
 										type="text"
 										value={formData.keywords}
 										onChange={(e) => setFormData((p) => ({ ...p, keywords: e.target.value }))}
 										placeholder="IFOOD, RAPPI, UBER EATS (separados por vírgula)"
 									/>
-									<p className="text-xs text-gray-500 mt-1">Usadas na auto-categorização de importações CSV</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">Usadas na auto-categorização de importações CSV</p>
 								</div>
 								<div>
-									<label className="block text-xs font-medium text-gray-400 mb-1 uppercase">Prioridade</label>
+									<label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Prioridade</label>
 									<Input
 										type="number"
 										value={formData.sortOrder}
@@ -267,12 +265,12 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 										min={1}
 										max={999}
 									/>
-									<p className="text-xs text-gray-500 mt-1">Menor = maior prioridade</p>
+									<p className="text-xs text-[var(--text-muted)] mt-1">Menor = maior prioridade</p>
 								</div>
 							</div>
 
 							{error && (
-								<div className="p-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">{error}</div>
+								<div className="p-2 bg-pink-500/10 border border-pink-500/30 rounded-xl text-pink-400 text-sm">{error}</div>
 							)}
 
 							<div className="flex gap-2 justify-end">
@@ -286,17 +284,16 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 						</form>
 					)}
 
-					{/* Categories list */}
 					{isLoading ? (
-						<div className="text-center text-gray-400 py-8">Carregando categorias...</div>
+						<div className="text-center text-[var(--text-secondary)] py-8">Carregando categorias...</div>
 					) : filteredCategories.length === 0 ? (
-						<div className="text-center text-gray-400 py-8">Nenhuma categoria encontrada.</div>
+						<div className="text-center text-[var(--text-secondary)] py-8">Nenhuma categoria encontrada.</div>
 					) : (
 						<div className="space-y-1">
 							{filteredCategories.map((cat) => (
 								<div
 									key={cat.key}
-									className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/60 transition-colors group"
+									className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors group"
 								>
 									<div className="flex items-center gap-3">
 										{cat.color && (
@@ -307,10 +304,10 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 										)}
 										<span className="text-lg">{cat.icon || ""}</span>
 										<div>
-											<span className="text-gray-100 font-medium">{cat.name}</span>
-											<span className="text-gray-500 text-xs ml-2">{cat.key}</span>
+											<span className="text-[var(--text-primary)] font-medium">{cat.name}</span>
+											<span className="text-[var(--text-muted)] text-xs ml-2">{cat.key}</span>
 											{cat.keywords && cat.keywords.length > 0 && (
-												<span className="text-gray-500 text-xs ml-2" title={cat.keywords.join(", ")}>
+												<span className="text-[var(--text-muted)] text-xs ml-2" title={cat.keywords.join(", ")}>
 													({cat.keywords.length} keywords)
 												</span>
 											)}
@@ -322,14 +319,14 @@ export function ManageCategoriesModal({ open, onOpenChange }: ManageCategoriesMo
 									<div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 										<button
 											onClick={() => handleEdit(cat)}
-											className="p-1.5 text-gray-400 hover:text-yellow-400 transition-colors"
+											className="p-1.5 text-[var(--text-muted)] hover:text-purple-400 transition-colors"
 											title="Editar"
 										>
 											<Pencil1Icon className="w-4 h-4" />
 										</button>
 										<button
 											onClick={() => handleDelete(cat)}
-											className="p-1.5 text-gray-400 hover:text-red-400 transition-colors"
+											className="p-1.5 text-[var(--text-muted)] hover:text-pink-400 transition-colors"
 											title="Excluir"
 										>
 											<TrashIcon className="w-4 h-4" />
