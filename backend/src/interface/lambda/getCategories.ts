@@ -10,7 +10,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     const categoryRepo = new CategoryRepository()
 
-    // Seed default categories if empty
     await categoryRepo.seedDefaultCategories()
 
     const type = event.queryStringParameters?.type as

@@ -29,7 +29,6 @@ export class ReprocessCategories {
   ): Promise<ReprocessResult> {
     const transactions = await this.transactionRepository.findByUserId(userId)
 
-    // Build list of updates needed (in memory, no DB calls yet)
     const updates: Array<{ id: string; category: string }> = []
     let unchanged = 0
 
@@ -47,7 +46,6 @@ export class ReprocessCategories {
       }
     }
 
-    // Single bulkWrite instead of N individual updates
     let updated = 0
     if (updates.length > 0) {
       updated = await this.transactionRepository.bulkUpdateCategories(updates)
@@ -61,10 +59,6 @@ export class ReprocessCategories {
   }
 }
 
-/**
- * Predicts the category of a transaction based on its description.
- * Priority: user corrections > payment method skip > DB keyword rules > "Outros"
- */
 export function predictCategory (
   description: string,
   corrections?: CategoryCorrection[],
@@ -79,7 +73,6 @@ export function predictCategory (
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
 
-  // Check user corrections first
   if (corrections && corrections.length > 0) {
     for (const correction of corrections) {
       const normalizedPattern = correction.descriptionPattern
@@ -93,12 +86,10 @@ export function predictCategory (
     }
   }
 
-  // Skip payment method descriptions
   if (/^(PIX|PAGAMENTO |PAGAMENTO|TRANSFERENCIA|TRANSFERÊNCIA)(\s|$)/.test(normalized)) {
     return 'A Categorizar'
   }
 
-  // Match against category keyword rules from DB (sorted by sortOrder)
   if (categoryRules && categoryRules.length > 0) {
     const sorted = [...categoryRules].sort((a, b) => (a.sortOrder ?? 100) - (b.sortOrder ?? 100))
 

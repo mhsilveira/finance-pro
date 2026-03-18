@@ -6,8 +6,8 @@ export interface TransactionFilters {
 	categoryFilter: string;
 	originFilter: "all" | "CREDIT_CARD" | "CASH";
 	cardFilter: string;
-	monthFrom: string; // YYYY-MM
-	monthTo: string; // YYYY-MM
+	monthFrom: string;
+	monthTo: string;
 	pageSize: number;
 }
 
@@ -28,7 +28,6 @@ export function usePersistedFilters() {
 	const [filters, setFiltersState] = useState<TransactionFilters>(DEFAULT_FILTERS);
 	const [isLoaded, setIsLoaded] = useState(false);
 
-	// Load filters from localStorage on mount
 	useEffect(() => {
 		try {
 			const saved = localStorage.getItem(STORAGE_KEY);
@@ -43,7 +42,6 @@ export function usePersistedFilters() {
 		}
 	}, []);
 
-	// Save filters to localStorage whenever they change
 	useEffect(() => {
 		if (isLoaded) {
 			try {

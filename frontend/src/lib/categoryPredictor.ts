@@ -1,19 +1,6 @@
-/**
- * Auto-Categorization Engine
- * Predicts transaction category based on keyword rules from the database.
- */
-
 import type { CategoryCorrection } from "@/services/api";
 import type { Category } from "@/types/transaction";
 
-/**
- * Predicts the category of a transaction based on its description.
- * Priority: user corrections > payment method skip > DB keyword rules > "Outros"
- *
- * @param description - The transaction description
- * @param corrections - User-specific corrections (from DB)
- * @param categories - Categories with keywords (from DB)
- */
 export function predictCategory(
 	description: string,
 	corrections?: CategoryCorrection[],
@@ -23,14 +10,12 @@ export function predictCategory(
 		return "Outros";
 	}
 
-	// Normalize description: uppercase, remove accents, trim
 	const normalizedDescription = description
 		.toUpperCase()
 		.normalize("NFD")
 		.replace(/[\u0300-\u036f]/g, "")
 		.trim();
 
-	// Check user corrections first (exact match on normalized pattern)
 	if (corrections && corrections.length > 0) {
 		for (const correction of corrections) {
 			const normalizedPattern = correction.descriptionPattern
@@ -45,7 +30,6 @@ export function predictCategory(
 		}
 	}
 
-	// Skip payment method descriptions
 	if (
 		/^(PIX|PAGAMENTO EFETUADO|PAGAMENTO DE BOLETO|TRANSFERENCIA|TRANSFERÊNCIA)(\s|$)/.test(
 			normalizedDescription,
@@ -54,7 +38,6 @@ export function predictCategory(
 		return "A Categorizar";
 	}
 
-	// Match against DB categories with keywords (sorted by sortOrder)
 	if (categories && categories.length > 0) {
 		const sorted = [...categories].sort((a, b) => (a.sortOrder ?? 100) - (b.sortOrder ?? 100));
 
@@ -74,6 +57,5 @@ export function predictCategory(
 		}
 	}
 
-	// Default category if no match
 	return "Outros";
 }

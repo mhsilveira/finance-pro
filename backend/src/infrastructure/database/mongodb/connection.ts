@@ -24,7 +24,6 @@ export async function connectMongo (): Promise<typeof mongoose> {
   isConnected = true
   console.log('[MongoDB] Conectado')
 
-  // Sync indexes once (creates new indexes like the idempotency unique constraint)
   if (!indexesSynced) {
     try {
       await TransactionMongooseModel.syncIndexes()

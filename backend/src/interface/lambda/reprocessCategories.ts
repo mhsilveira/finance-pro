@@ -13,19 +13,16 @@ export const handler = async (
   try {
     await connectMongo()
 
-    // Get userId from query params
     const userId = event.queryStringParameters?.userId
     if (!userId) {
       return json(400, { error: 'userId is required' })
     }
 
-    // Initialize repositories and use case
     const transactionRepository = new TransactionRepository()
     const correctionRepository = new CategoryCorrectionRepository()
     const categoryRepository = new CategoryRepository()
     const reprocessUseCase = new ReprocessCategories(transactionRepository)
 
-    // Fetch user corrections and category rules from DB
     const [corrections, categories] = await Promise.all([
       correctionRepository.findByUserId(userId),
       categoryRepository.findAll()
@@ -37,7 +34,6 @@ export const handler = async (
       sortOrder: c.sortOrder ?? 100
     }))
 
-    // Execute reprocessing with corrections and DB rules
     const result = await reprocessUseCase.execute(userId, corrections, categoryRules)
 
     return json(200, {

@@ -24,7 +24,7 @@ export const createTransactionSchema = z
   .object({
     userId: z.string().min(1),
     description: z.string().min(1),
-    amount: amountSchema, // retorna string (ex: "85.50") -> converte pra Decimal128 no repo
+    amount: amountSchema,
     type: z.enum(['income', 'expense']),
     category: z.string().min(1, 'Categoria é obrigatória'),
     date: z

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "dark"; // Sempre dark mode
+type Theme = "dark";
 
 interface ThemeContextType {
 	theme: Theme;
@@ -18,7 +18,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		// Força dark mode sempre
 		document.documentElement.classList.add("dark");
 		setMounted(true);
 	}, []);

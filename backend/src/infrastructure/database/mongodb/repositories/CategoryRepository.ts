@@ -45,7 +45,6 @@ export class CategoryRepository {
   async seedDefaultCategories (): Promise<void> {
     const count = await CategoryModel.countDocuments()
     if (count > 0) {
-      // Migrate existing categories: add keywords if they don't have any
       await this.migrateKeywords()
       return
     }
@@ -368,19 +367,13 @@ export class CategoryRepository {
     await CategoryModel.insertMany(defaultCategories)
   }
 
-  /**
-   * Migrate existing categories to add keywords if they don't have any yet.
-   * This runs once when categories already exist but lack keywords.
-   */
   private async migrateKeywords (): Promise<void> {
-    // Check if any category already has keywords
     const withKeywords = await CategoryModel.findOne({
       keywords: { $exists: true, $ne: [] }
     }).lean()
 
-    if (withKeywords) return // Already migrated
+    if (withKeywords) return
 
-    // Default keyword mappings by key
     const keywordMap: Record<
       string,
       { keywords: string[]; sortOrder: number }

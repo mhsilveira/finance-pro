@@ -35,7 +35,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       return badRequest('Maximum 500 transactions per batch')
     }
 
-    // Load all categories ONCE into lookup maps
     const categoryRepo = new CategoryRepository()
     await categoryRepo.seedDefaultCategories()
     const allCategories = await categoryRepo.findAll()
@@ -51,7 +50,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       return categoryByKey.get(input.toUpperCase()) ?? categoryByName.get(input) ?? null
     }
 
-    // Validate all transactions and prepare documents
     const docs: any[] = []
     const errors: Array<{ index: number; error: string }> = []
 
@@ -99,7 +97,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       })
     }
 
-    // Bulk insert with ordered: false (continues past duplicates/errors)
     let success = 0
     let duplicates = 0
 
@@ -108,12 +105,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         const result = await TransactionMongooseModel.insertMany(docs, { ordered: false })
         success = result.length
       } catch (err: any) {
-        // With ordered: false, MongoDB throws a BulkWriteError but still inserts valid docs
         if (err.code === 11000 || err.name === 'MongoBulkWriteError' || err.name === 'BulkWriteError') {
-          // Count successful inserts — try multiple property paths across driver versions
           success = err.insertedCount ?? err.insertedDocs?.length ?? err.result?.nInserted ?? 0
 
-          // Count duplicates from write errors
           const writeErrors = err.writeErrors ?? err.errors ?? []
           for (const we of writeErrors) {
             const code = we.code ?? we.err?.code

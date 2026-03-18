@@ -33,7 +33,6 @@ const CategoryCorrectionSchema = new Schema<ICategoryCorrection>(
   }
 )
 
-// Compound index: one correction per description pattern per user
 CategoryCorrectionSchema.index(
   { userId: 1, descriptionPattern: 1 },
   { unique: true }

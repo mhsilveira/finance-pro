@@ -1,4 +1,3 @@
-// services/recurring.ts
 import type { RecurringTransaction, CreateRecurringTransactionPayload } from "../types/recurring";
 
 const STORAGE_KEY = "recurring_transactions";

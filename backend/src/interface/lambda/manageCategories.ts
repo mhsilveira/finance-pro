@@ -23,7 +23,6 @@ export const createHandler = async (
       return json(400, { error: 'type must be income, expense, or both' })
     }
 
-    // Check if key already exists
     const existing = await repo.findByKey(key)
     if (existing) {
       return json(409, { error: `Category with key '${key}' already exists` })

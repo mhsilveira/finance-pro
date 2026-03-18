@@ -1,4 +1,3 @@
-// src/interface/lambda/getReports.ts
 import '../../bootstrap'
 import { connectMongo } from '@infrastructure/database/mongodb/connection'
 import { TransactionMongooseModel } from '@infrastructure/database/mongodb/models/TransactionModel'
@@ -18,7 +17,6 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       return badRequest('query param "userId" é obrigatório')
     }
 
-    // monthlyTrends
     const monthlyTrends = await TransactionMongooseModel.aggregate([
       { $match: { userId } },
       {
@@ -73,7 +71,6 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       { $sort: { monthYear: 1 } }
     ]).exec()
 
-    // categoryBreakdown
     const categoryBreakdown = await TransactionMongooseModel.aggregate([
       { $match: { userId } },
       {
@@ -93,7 +90,6 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       { $sort: { type: 1, amount: -1 } }
     ]).exec()
 
-    // averageDailySpending
     const avgDoc = await TransactionMongooseModel.aggregate([
       { $match: { userId, type: 'expense' } },
       {

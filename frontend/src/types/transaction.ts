@@ -1,4 +1,3 @@
-// src/types/transaction.ts
 export interface Transaction {
 	id: string;
 	userId: string;
@@ -7,8 +6,8 @@ export interface Transaction {
 	type: "income" | "expense";
 	origin: "CREDIT_CARD" | "CASH";
 	category: string;
-	date: string; // YYYY-MM-DD
-	monthYear: string; // YYYY-MM
+	date: string;
+	monthYear: string;
 	card?: string;
 	createdAt: string;
 	updatedAt: string;
@@ -21,7 +20,7 @@ export interface CreateTransactionPayload {
 	type: "income" | "expense";
 	origin: "CREDIT_CARD" | "CASH";
 	category: string;
-	date: string; // YYYY-MM-DD
+	date: string;
 	card?: string;
 }
 

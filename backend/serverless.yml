@@ -156,8 +156,26 @@ functions:
           method: delete
           cors: true
 
+  categorizeTransactions:
+    handler: src/interface/lambda/categorizeTransactions.handler
+    timeout: 120
+    events:
+      - http:
+          path: ai/categorize
+          method: post
+          cors: true
+
+  generateInsights:
+    handler: src/interface/lambda/generateInsights.handler
+    timeout: 120
+    events:
+      - http:
+          path: ai/insights
+          method: get
+          cors: true
+
 custom:
   serverless-offline:
     httpPort: 3001
   dotenv:
-    path: .env    
+    path: .env

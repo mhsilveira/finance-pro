@@ -3,5 +3,5 @@ export interface UpdateTransactionDTO {
 	amount?: number;
 	type?: "income" | "expense";
 	category?: string;
-	date?: string; // ISO
+	date?: string;
 }

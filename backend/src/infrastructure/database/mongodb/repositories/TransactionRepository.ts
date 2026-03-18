@@ -34,13 +34,11 @@ function decimalFromNumber (v: number): mongoose.Types.Decimal128 {
 }
 
 function amountFromDoc (t: any): number {
-  // t.amount pode ser Decimal128, string, number
   if (t == null) return 0
   const val = t.amount
   if (val == null) return 0
   if (typeof val === 'number') return val
   if (typeof val === 'string') return parseFloat(val)
-  // mongoose Decimal128 has toString()
   if (typeof val.toString === 'function') {
     const s = val.toString()
     return parseFloat(s)
@@ -54,7 +52,7 @@ function toDomain (doc: any): Transaction {
   const date = safeDate(t?.date)
   const createdAt = safeDate(t?.createdAt)
   const updatedAt = safeDate(t?.updatedAt)
-  const category = t.categoryName || t.category // Use categoryName do banco
+  const category = t.categoryName || t.category
 
   return new Transaction(
     id,
@@ -63,10 +61,10 @@ function toDomain (doc: any): Transaction {
     amountFromDoc(t),
     t?.type,
     t?.origin,
-    category, // category name (não key)
-    date, // Date | null
-    createdAt, // Date | null
-    updatedAt, // Date | null
+    category,
+    date,
+    createdAt,
+    updatedAt,
     t?.card
   )
 }
@@ -83,13 +81,11 @@ export class TransactionRepository implements ITransactionRepository {
     const data: any = {
       userId: transaction.userId,
       description: transaction.description,
-      // convert to Decimal128
       amount: decimalFromNumber(transaction.amount as number),
       currency: (transaction as any).currency ?? 'BRL',
       type: transaction.type,
       origin: (transaction as any).origin ?? null,
       card: transaction.card ?? null,
-      // store both key and name if provided; if not, keep key as name
       categoryId: transaction.category ?? null,
       categoryName:
         (transaction as any).categoryName ?? transaction.category ?? null,
@@ -103,7 +99,6 @@ export class TransactionRepository implements ITransactionRepository {
       idempotencyKey
     }
 
-    // Se o id passado for válido ObjectId, usa; senão deixa o Mongo gerar
     if (transaction.id && Types.ObjectId.isValid(transaction.id)) {
       data._id = new Types.ObjectId(transaction.id)
     }
@@ -149,7 +144,6 @@ export class TransactionRepository implements ITransactionRepository {
   ): Promise<Transaction | null> {
     if (!Types.ObjectId.isValid(id)) return null
 
-    // Sanitização: não permite mudar id, userId, createdAt
     const {
       id: _drop1,
       userId: _drop2,
@@ -157,17 +151,13 @@ export class TransactionRepository implements ITransactionRepository {
       ...rest
     } = partial as any
 
-    // handle date normalization
     if ('date' in rest && rest.date) {
       const d = safeDate(rest.date)
       rest.date = d ?? null
-      // recompute monthYear when date is changed
       rest.monthYear = toMonthYearFromDate(d) ?? rest.monthYear
     }
 
-    // handle amount -> Decimal128
     if ('amount' in rest && rest.amount !== undefined && rest.amount !== null) {
-      // normalize if string
       const amt =
         typeof rest.amount === 'string'
           ? Number(String(rest.amount).replace(',', '.'))
@@ -181,7 +171,6 @@ export class TransactionRepository implements ITransactionRepository {
       rest.updatedAt = new Date()
     }
 
-    // if categoryName provided keep it; if only category (key) provided, set categoryName = key (UI / use-case may set better)
     if ('category' in rest && rest.category && !rest.categoryName) {
       rest.categoryId = rest.category
       rest.categoryName = rest.category
@@ -281,5 +270,21 @@ export class TransactionRepository implements ITransactionRepository {
     if (!Types.ObjectId.isValid(id)) return false
     const res = await TransactionMongooseModel.deleteOne({ _id: id }).exec()
     return res.deletedCount === 1
+  }
+
+  async findByUserIdAndDateRange (
+    userId: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<Transaction[]> {
+    const docs = await TransactionMongooseModel.find({
+      userId,
+      deletedAt: null,
+      date: { $gte: startDate, $lte: endDate }
+    })
+      .sort({ date: -1 })
+      .exec()
+
+    return docs.map(toDomain)
   }
 }

@@ -25,7 +25,6 @@ export class CreateTransaction {
     category: string
     date: Date
   }): Promise<Transaction> {
-    // Validar se a categoria existe (busca por key ou name)
     let category = await this.categoryRepo.findByKey(params.category)
     if (!category) {
       category = await this.categoryRepo.findByName(params.category)
@@ -44,7 +43,7 @@ export class CreateTransaction {
       amountNumber,
       params.type,
       params.origin === 'CREDIT_CARD' ? 'CREDIT_CARD' : params.origin === 'CASH' ? 'CASH' : undefined,
-      category.name, // Usa o nome da categoria do banco
+      category.name,
       params.date,
       new Date(),
       new Date(),

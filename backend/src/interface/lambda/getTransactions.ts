@@ -1,4 +1,3 @@
-// src/interface/lambda/getTransactions.ts
 import '../../bootstrap'
 import { ListTransactions } from '@domain/use-cases/ListTransactions'
 import { connectMongo } from '@infrastructure/database/mongodb/connection'
@@ -24,7 +23,6 @@ function toDateOrNull (d: unknown): Date | null {
   }
 }
 
-// yyyy-mm-dd (UTC)
 function toDateOnly (dt: Date | null): string | null {
   if (!dt) return null
   const y = dt.getUTCFullYear()
@@ -42,17 +40,14 @@ export const handler: APIGatewayProxyHandlerV2 = async event => {
       return badRequest('query param "userId" é obrigatório')
     }
 
-    // Pagination parameters
     const page = parseInt(event.queryStringParameters?.page || '1', 10)
     const limit = parseInt(event.queryStringParameters?.limit || '50', 10)
     const skip = (page - 1) * limit
 
     const repo = new TransactionRepository()
 
-    // Get total count
     const total = await repo.countByUserId(userId)
 
-    // Get paginated transactions
     const useCase = new ListTransactions(repo)
     const list = await useCase.execute(userId, { limit, skip })
     console.log('Transactions found:', list.length, 'of', total)

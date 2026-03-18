@@ -1,12 +1,7 @@
-// services/csv.ts
 import type { Transaction, CreateTransactionPayload, Category } from "../types/transaction";
 import type { CSVSource } from "../components/ImportCSVModal";
 import type { CategoryCorrection } from "@/services/api";
 import { predictCategory } from "@/lib/categoryPredictor";
-
-// ============================================================================
-// EXPORT TO CSV
-// ============================================================================
 
 export function exportTransactionsToCSV(transactions: Transaction[]): void {
 	if (transactions.length === 0) {
@@ -57,9 +52,15 @@ export function exportTransactionsToCSV(transactions: Transaction[]): void {
 	document.body.removeChild(link);
 }
 
-// ============================================================================
-// IMPORT FROM CSV - MAIN FUNCTION
-// ============================================================================
+const IGNORED_DESCRIPTIONS = [
+	"pagamento efetuado",
+	"pagamento recebido",
+];
+
+function shouldIgnoreTransaction(description: string): boolean {
+	const normalized = description.toLowerCase().trim();
+	return IGNORED_DESCRIPTIONS.some((term) => normalized.includes(term));
+}
 
 export function parseCSV(csvText: string, source: CSVSource, corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const lines = csvText.trim().split("\n");
@@ -68,33 +69,32 @@ export function parseCSV(csvText: string, source: CSVSource, corrections?: Categ
 		throw new Error("CSV vazio ou inválido");
 	}
 
-	// Route to appropriate parser based on source
+	let transactions: CreateTransactionPayload[];
+
 	switch (source) {
 		case "NUBANK_CHECKING":
-			return parseNubankChecking(lines, corrections, categories);
+			transactions = parseNubankChecking(lines, corrections, categories);
+			break;
 		case "NUBANK_CREDIT":
-			return parseNubankCredit(lines, corrections, categories);
+			transactions = parseNubankCredit(lines, corrections, categories);
+			break;
 		case "ITAU_CHECKING":
-			return parseItauChecking(lines, corrections, categories);
+			transactions = parseItauChecking(lines, corrections, categories);
+			break;
 		case "ITAU_CREDIT":
-			return parseItauCredit(lines, corrections, categories);
+			transactions = parseItauCredit(lines, corrections, categories);
+			break;
 		default:
 			throw new Error(`Formato desconhecido: ${source}`);
 	}
-}
 
-// ============================================================================
-// PARSER 1: Nubank - Checking Account (Extrato)
-// Format: Data,Valor,Identificador,Descrição
-// Date: DD/MM/YYYY
-// Amount: Uses . for decimals, negative = expense
-// ============================================================================
+	return transactions.filter((t) => !shouldIgnoreTransaction(t.description));
+}
 
 function parseNubankChecking(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
-	// Validate expected format
 	if (!headers.includes("data") || !headers.includes("valor") || !headers.includes("descrição")) {
 		throw new Error("Formato Nubank Extrato inválido. Esperado: Data,Valor,Identificador,Descrição");
 	}
@@ -111,30 +111,23 @@ function parseNubankChecking(lines: string[], corrections?: CategoryCorrection[]
 		const description = values[3] || `Transação ${i}`;
 
 		try {
-			// Parse date DD/MM/YYYY -> YYYY-MM-DD
 			const date = parseBrazilianDate(dateStr);
-
-			// Parse amount (dot as decimal, no thousands separator in Nubank checking)
 			const amount = parseFloat(amountStr.trim());
 
-			// Skip invalid amounts
 			if (isNaN(amount) || amount === 0) {
 				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
 				continue;
 			}
 
-			// Determine type based on sign BEFORE converting to absolute
 			const type = amount < 0 ? "expense" : "income";
-
-			// Convert to absolute value (backend expects positive numbers)
 			const absoluteAmount = Math.abs(amount);
 
 			transactions.push({
 				userId: "blanchimaah",
 				description: description.trim(),
-				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				amount: absoluteAmount.toFixed(2),
 				type: type,
-				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),
 				origin: "CASH",
 				date: date,
 				card: undefined,
@@ -148,18 +141,10 @@ function parseNubankChecking(lines: string[], corrections?: CategoryCorrection[]
 	return transactions;
 }
 
-// ============================================================================
-// PARSER 2: Itau - Checking Account (Extrato)
-// Format: Data;Descricao;Valor
-// Date: DD/MM/YYYY
-// Amount: Uses , for decimals (Brazilian format)
-// ============================================================================
-
 function parseItauChecking(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ";").map((h) => h.toLowerCase());
 
-	// Validate expected format
 	if (!headers.includes("data") || !headers.includes("descricao") || !headers.includes("valor")) {
 		throw new Error("Formato Itaú Extrato inválido. Esperado: Data;Descricao;Valor");
 	}
@@ -176,31 +161,24 @@ function parseItauChecking(lines: string[], corrections?: CategoryCorrection[], 
 		const amountStr = values[2] || "";
 
 		try {
-			// Parse date DD/MM/YYYY -> YYYY-MM-DD
 			const date = parseBrazilianDate(dateStr);
-
-			// Parse amount - Brazilian format (comma as decimal, may have dot as thousands)
 			const cleanAmount = amountStr.trim().replace(/\./g, "").replace(",", ".");
 			const amount = parseFloat(cleanAmount);
 
-			// Skip invalid amounts
 			if (isNaN(amount) || amount === 0) {
 				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
 				continue;
 			}
 
-			// Determine type based on sign BEFORE converting to absolute
 			const type = amount < 0 ? "expense" : "income";
-
-			// Convert to absolute value (backend expects positive numbers)
 			const absoluteAmount = Math.abs(amount);
 
 			transactions.push({
 				userId: "blanchimaah",
 				description: description.trim(),
-				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				amount: absoluteAmount.toFixed(2),
 				type: type,
-				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),
 				origin: "CASH",
 				date: date,
 				card: undefined,
@@ -214,18 +192,10 @@ function parseItauChecking(lines: string[], corrections?: CategoryCorrection[], 
 	return transactions;
 }
 
-// ============================================================================
-// PARSER 3: Nubank - Credit Card (Fatura)
-// Format: date,title,amount
-// Date: YYYY-MM-DD (ISO format)
-// Amount: Uses . for decimals, POSITIVE but they are expenses!
-// ============================================================================
-
 function parseNubankCredit(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
-	// Validate expected format
 	if (!headers.includes("date") || !headers.includes("title") || !headers.includes("amount")) {
 		throw new Error("Formato Nubank Fatura inválido. Esperado: date,title,amount");
 	}
@@ -242,28 +212,22 @@ function parseNubankCredit(lines: string[], corrections?: CategoryCorrection[], 
 		const amountStr = values[2] || "";
 
 		try {
-			// Date is already in YYYY-MM-DD format
 			const date = dateStr.trim();
-
-			// Parse amount (dot as decimal)
 			const amount = parseFloat(amountStr.trim());
 
-			// Skip invalid amounts
 			if (isNaN(amount) || amount === 0) {
 				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
 				continue;
 			}
 
-			// Credit card purchases are always expenses
-			// Convert to absolute value (backend expects positive numbers)
 			const absoluteAmount = Math.abs(amount);
 
 			transactions.push({
 				userId: "blanchimaah",
 				description: description.trim(),
-				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				amount: absoluteAmount.toFixed(2),
 				type: "expense",
-				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),
 				origin: "CREDIT_CARD",
 				date: date,
 				card: "Nubank",
@@ -277,18 +241,10 @@ function parseNubankCredit(lines: string[], corrections?: CategoryCorrection[], 
 	return transactions;
 }
 
-// ============================================================================
-// PARSER 4: Itau - Credit Card (Fatura)
-// Format: data,lançamento,valor
-// Date: YYYY-MM-DD (ISO format)
-// Amount: Uses . for decimals
-// ============================================================================
-
 function parseItauCredit(lines: string[], corrections?: CategoryCorrection[], categories?: Category[]): CreateTransactionPayload[] {
 	const transactions: CreateTransactionPayload[] = [];
 	const headers = parseCSVLine(lines[0], ",").map((h) => h.toLowerCase());
 
-	// Validate expected format
 	if (!headers.includes("data") || !headers.includes("lançamento") || !headers.includes("valor")) {
 		throw new Error("Formato Itaú Fatura inválido. Esperado: data,lançamento,valor");
 	}
@@ -305,28 +261,22 @@ function parseItauCredit(lines: string[], corrections?: CategoryCorrection[], ca
 		const amountStr = values[2] || "";
 
 		try {
-			// Date is already in YYYY-MM-DD format
 			const date = dateStr.trim();
-
-			// Parse amount (dot as decimal)
 			const amount = parseFloat(amountStr.trim());
 
-			// Skip invalid amounts
 			if (isNaN(amount) || amount === 0) {
 				console.warn(`Linha ${i + 1} ignorada: valor inválido "${amountStr}"`);
 				continue;
 			}
 
-			// Credit card purchases are always expenses
-			// Convert to absolute value (backend expects positive numbers)
 			const absoluteAmount = Math.abs(amount);
 
 			transactions.push({
 				userId: "blanchimaah",
 				description: description.trim(),
-				amount: absoluteAmount.toFixed(2),  // Ensure max 2 decimal places
+				amount: absoluteAmount.toFixed(2),
 				type: "expense",
-				category: predictCategory(description, corrections, categories),  // Auto-categorize based on description
+				category: predictCategory(description, corrections, categories),
 				origin: "CREDIT_CARD",
 				date: date,
 				card: "Itaú",
@@ -340,13 +290,6 @@ function parseItauCredit(lines: string[], corrections?: CategoryCorrection[], ca
 	return transactions;
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Parse Brazilian date format DD/MM/YYYY to YYYY-MM-DD
- */
 function parseBrazilianDate(dateStr: string): string {
 	const parts = dateStr.trim().split("/");
 	if (parts.length === 3) {
@@ -355,9 +298,6 @@ function parseBrazilianDate(dateStr: string): string {
 	return new Date().toISOString().split("T")[0];
 }
 
-/**
- * Parse CSV line respecting quoted fields
- */
 function parseCSVLine(line: string, delimiter = ","): string[] {
 	const result: string[] = [];
 	let current = "";
@@ -384,10 +324,6 @@ function parseCSVLine(line: string, delimiter = ","): string[] {
 	result.push(current.trim());
 	return result;
 }
-
-// ============================================================================
-// DOWNLOAD CSV TEMPLATE
-// ============================================================================
 
 export function downloadCSVTemplate(): void {
 	const csvContent = [

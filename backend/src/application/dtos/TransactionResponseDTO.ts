@@ -5,7 +5,7 @@ export interface TransactionResponseDTO {
 	amount: number;
 	type: "income" | "expense";
 	category: string;
-	date: string; // ISO
-	createdAt: string; // ISO
-	updatedAt: string; // ISO
+	date: string;
+	createdAt: string;
+	updatedAt: string;
 }

@@ -22,7 +22,6 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 		const repo = new TransactionRepository();
 		const categoryRepo = new CategoryRepository();
 
-		// Seed categories if needed
 		await categoryRepo.seedDefaultCategories();
 
 		const useCase = new CreateTransaction(repo, categoryRepo);
@@ -45,7 +44,7 @@ const safeISO = (v: any) =>
       : v.toISOString()
     : null
 
-		
+
 		return json(201, {
 			id: created.id,
 			userId: created.userId,

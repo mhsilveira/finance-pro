@@ -1,4 +1,3 @@
-// services/api.ts
 import type { Transaction, CreateTransactionPayload, Category } from "../types/transaction";
 
 export type { CreateTransactionPayload } from "../types/transaction";
@@ -190,7 +189,6 @@ export async function saveCategoryCorrection(
 	return res.json();
 }
 
-// Batch create transactions (single request for CSV import)
 export interface BatchCreateResult {
 	message: string;
 	success: number;
@@ -216,7 +214,6 @@ export async function batchCreateTransactions(transactions: CreateTransactionPay
 	return res.json();
 }
 
-// Transaction stats (server-side aggregation)
 export interface TransactionStats {
 	totalCount: number;
 	income: number;
@@ -242,7 +239,6 @@ export async function getTransactionStats(
 	return res.json();
 }
 
-// Category CRUD
 export async function createCategory(data: {
 	key: string;
 	name: string;
@@ -299,4 +295,47 @@ export async function deleteCategory(key: string): Promise<void> {
 		const text = await res.text().catch(() => "");
 		throw new Error(`Erro ${res.status}: ${text || res.statusText}`);
 	}
+}
+
+export interface AICategorizeResult {
+	description: string;
+	suggestedCategory: string;
+	confidence: number;
+}
+
+export async function aiCategorize(descriptions: string[]): Promise<AICategorizeResult[]> {
+	const base = getBaseUrl();
+
+	const res = await fetch(`${base}/ai/categorize`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ descriptions }),
+	});
+
+	if (!res.ok) {
+		throw new Error(`Erro ${res.status}: ${res.statusText}`);
+	}
+
+	const data = await res.json();
+	return data.results;
+}
+
+export interface SpendingInsight {
+	summary: string;
+	highlights: string[];
+	recommendations: string[];
+}
+
+export async function getSpendingInsights(userId: string, month: string): Promise<SpendingInsight> {
+	const base = getBaseUrl();
+
+	const res = await fetch(`${base}/ai/insights?userId=${userId}&month=${month}`, {
+		cache: "no-store",
+	});
+
+	if (!res.ok) {
+		throw new Error(`Erro ${res.status}: ${res.statusText}`);
+	}
+
+	return res.json();
 }

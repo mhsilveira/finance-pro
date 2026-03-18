@@ -190,9 +190,9 @@ export default function AnalyticsPage() {
 
 	return (
 		<div className="min-h-screen animate-fade-in">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
 				<div className="mb-8">
-					<h1 className="text-4xl font-bold text-[var(--text-primary)]">Análises e Insights</h1>
+					<h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Análises e Insights</h1>
 					<p className="mt-2 text-[var(--text-secondary)]">Entenda melhor seus padrões de gastos</p>
 				</div>
 
@@ -231,24 +231,24 @@ export default function AnalyticsPage() {
 
 				<div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
 					<div className="glass glass-hover rounded-xl p-6">
-						<p className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Total em Despesas</p>
-						<p className="text-3xl font-semibold text-pink-400 tabular-nums">{formatCurrency(totalExpenses)}</p>
+						<p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2">Total em Despesas</p>
+						<p className="text-2xl font-bold text-pink-400 tabular-nums">{formatCurrency(totalExpenses)}</p>
 					</div>
 
 					<div className="glass glass-hover rounded-xl p-6">
-						<p className="text-sm font-medium text-[var(--text-muted)] uppercase tracking-wide mb-2">Total em Receitas</p>
-						<p className="text-3xl font-semibold text-emerald-400 tabular-nums">{formatCurrency(totalIncome)}</p>
+						<p className="text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2">Total em Receitas</p>
+						<p className="text-2xl font-bold text-emerald-400 tabular-nums">{formatCurrency(totalIncome)}</p>
 					</div>
 
 					<div className="glass rounded-xl p-6 border border-purple-500/50 hover:border-purple-500 transition-all relative overflow-hidden">
 						<div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent" />
 						<div className="relative">
-							<p className="text-sm font-medium text-purple-400 uppercase tracking-wide mb-2">Variação Mensal</p>
+							<p className="text-xs font-medium uppercase tracking-wider text-purple-400 mb-2">Variação Mensal</p>
 							{selectedPeriod === "all" ? (
 								<p className="text-lg font-medium text-[var(--text-muted)]">Selecione um período</p>
 							) : (
 								<>
-									<p className={`text-3xl font-semibold tabular-nums ${expenseVariation > 0 ? "text-pink-400" : expenseVariation < 0 ? "text-emerald-400" : "text-[var(--text-primary)]"}`}>
+									<p className={`text-2xl font-bold tabular-nums ${expenseVariation > 0 ? "text-pink-400" : expenseVariation < 0 ? "text-emerald-400" : "text-[var(--text-primary)]"}`}>
 										{expenseVariation > 0 ? "+" : ""}{expenseVariation.toFixed(1)}%
 									</p>
 									<p className="text-xs text-[var(--text-muted)] mt-1">
