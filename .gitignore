@@ -8,4 +8,6 @@ coverage/
 
 # Claude Code agents/skills
 .agents/
+.claude/
+.superpowers/
 skills-lock.json

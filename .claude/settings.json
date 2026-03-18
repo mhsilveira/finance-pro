@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C /home/mhsilveira/Projects/financial-control add frontend/src/components/ImportCSVModal.tsx)",
-      "Bash(git -C:*)"
-    ]
-  }
-}
