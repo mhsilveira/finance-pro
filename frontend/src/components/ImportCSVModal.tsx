@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Upload, FileText } from "lucide-react";
 import { Button } from "./ui/button";
 
-export type CSVSource = "NUBANK_CREDIT" | "ITAU_CREDIT";
+export type CSVSource = "NUBANK_CREDIT" | "NUBANK_CHECKING" | "ITAU_CREDIT" | "ITAU_CHECKING";
 
 interface ImportCSVModalProps {
 	isOpen: boolean;
